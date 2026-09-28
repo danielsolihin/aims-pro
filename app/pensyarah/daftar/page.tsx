@@ -9,7 +9,7 @@ export default function DaftarPensyarah() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [secretCode, setSecretCode] = useState(''); // State untuk Kod Rahsia
+  const [secretCode, setSecretCode] = useState('');
   
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -26,8 +26,8 @@ export default function DaftarPensyarah() {
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    // 1. SEMAKAN KESELAMATAN (HALANG PELAJAR)
-    if (secretCode !== KOD_FAKULTI_SEBENAR) {
+    // 1. SEMAKAN KESELAMATAN (Otomatiskan tukar huruf besar & buang jarak ruang)
+    if (secretCode.trim().toUpperCase() !== KOD_FAKULTI_SEBENAR) {
       setErrorMsg('⛔ Kod Rahsia Fakulti tidak sah! Akses pendaftaran ditolak.');
       setIsLoading(false);
       return;
@@ -36,7 +36,7 @@ export default function DaftarPensyarah() {
     try {
       // 2. Daftar ke Supabase Auth
       const { data, error: authError } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
           data: {
@@ -108,7 +108,7 @@ export default function DaftarPensyarah() {
         borderRadius: '16px', 
         boxShadow: '0 15px 35px rgba(6, 95, 70, 0.1)', 
         border: '1px solid #e2e8f0',
-        borderTop: '6px solid #065f46', 
+        borderTop: '6px solid #065f46',
         position: 'relative',
         zIndex: 10
       }}>
@@ -148,12 +148,13 @@ export default function DaftarPensyarah() {
             />
           </div>
 
+          {/* KOTAK KOD RAHSIA FAKULTI */}
           <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '12px', border: '1px solid #fde047', marginTop: '8px' }}>
             <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', color: '#92400e', marginBottom: '6px' }}>
               🔐 Kod Pengesahan Fakulti
             </label>
             <input 
-              type="text" required value={secretCode} onChange={(e) => setSecretCode(e.target.value)} 
+              type="text" required value={secretCode} onChange={(e) => setSecretCode(e.target.value.toUpperCase())} 
               placeholder="Masukkan kod rahsia pendaftaran..." 
               style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '2px solid #fbbf24', fontSize: '0.95rem', fontWeight: 700, color: '#92400e', textAlign: 'center', textTransform: 'uppercase' }} 
             />
