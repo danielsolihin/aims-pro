@@ -88,14 +88,12 @@ export default function DaftarPensyarah() {
       alignItems: 'center', 
       justifyContent: 'center', 
       backgroundColor: '#f8fafc',
-      /* Corak Vektor Geometri Islamik (Bintang 8 Bucu - Rub el Hizb) */
       backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Cg fill='none' stroke='%23065f46' stroke-width='1.5' stroke-opacity='0.12'%3E%3Crect x='22' y='22' width='36' height='36' /%3E%3Crect x='22' y='22' width='36' height='36' transform='rotate(45 40 40)' /%3E%3Ccircle cx='40' cy='40' r='8' /%3E%3C/g%3E%3C/svg%3E")`,
       backgroundSize: '80px 80px',
       fontFamily: 'system-ui, sans-serif',
       padding: '24px'
     }}>
       
-      {/* BUTANG KEMBALI KE LOGIN BERPUSAT (/login) */}
       <div style={{ position: 'absolute', top: '24px', left: '24px' }}>
         <Link href="/login" style={{ padding: '10px 18px', background: '#fff', color: '#0f172a', borderRadius: '10px', textDecoration: 'none', fontWeight: 700, fontSize: '0.9rem', border: '1px solid #cbd5e1', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
           ⬅ Kembali ke Log Masuk
@@ -110,7 +108,7 @@ export default function DaftarPensyarah() {
         borderRadius: '16px', 
         boxShadow: '0 15px 35px rgba(6, 95, 70, 0.1)', 
         border: '1px solid #e2e8f0',
-        borderTop: '6px solid #065f46', /* Aksen Hijau */
+        borderTop: '6px solid #065f46', 
         position: 'relative',
         zIndex: 10
       }}>
@@ -150,7 +148,6 @@ export default function DaftarPensyarah() {
             />
           </div>
 
-          {/* KOTAK KOD RAHSIA FAKULTI */}
           <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '12px', border: '1px solid #fde047', marginTop: '8px' }}>
             <label style={{ display: 'block', fontWeight: 800, fontSize: '0.85rem', color: '#92400e', marginBottom: '6px' }}>
               🔐 Kod Pengesahan Fakulti
