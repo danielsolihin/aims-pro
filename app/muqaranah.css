@@ -1,0 +1,219 @@
+﻿:root {
+  --primary-emerald: #0D5C3A;
+  --primary-light: #E6F0EB;
+  --bg-main: #F8FAFC;
+  --surface: #FFFFFF;
+  --border-color: #E2E8F0;
+  --text-main: #1E293B;
+  --text-muted: #64748B;
+  --badge-batal-bg: #FEE2E2;
+  --badge-batal-text: #DC2626;
+  --badge-harus-bg: #DCFCE7;
+  --badge-harus-text: #16A34A;
+  --badge-bersyarat-bg: #FFEDD5;
+  --badge-bersyarat-text: #EA580C;
+  --radius-md: 12px;
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  padding: 24px 16px;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header-panel {
+  background: var(--surface);
+  padding: 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mazhab-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.mazhab-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.text-arabic {
+  font-family: 'Amiri', serif;
+  font-size: 1.25rem;
+  direction: rtl;
+  text-align: right;
+  background: var(--bg-main);
+  padding: 10px;
+  border-radius: 8px;
+  border-right: 3px solid var(--primary-emerald);
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.badge-membatalkan { background: var(--badge-batal-bg); color: var(--badge-batal-text); }
+.badge-tidak-membatalkan { background: var(--badge-harus-bg); color: var(--badge-harus-text); }
+.badge-bersyarat { background: var(--badge-bersyarat-bg); color: var(--badge-bersyarat-text); }
+
+.turath-box {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: #FFFBEB;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #FDE68A;
+}
+
+.tarjih-banner {
+  background: var(--primary-emerald);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .mazhab-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+  .mazhab-card {
+    min-width: 85%;
+    scroll-snap-align: center;
+  }
+}
+
+:root {
+  --primary-emerald: #0D5C3A;
+  --primary-light: #E6F0EB;
+  --bg-main: #F8FAFC;
+  --surface: #FFFFFF;
+  --border-color: #E2E8F0;
+  --text-main: #1E293B;
+  --text-muted: #64748B;
+  --badge-batal-bg: #FEE2E2;
+  --badge-batal-text: #DC2626;
+  --badge-harus-bg: #DCFCE7;
+  --badge-harus-text: #16A34A;
+  --badge-bersyarat-bg: #FFEDD5;
+  --badge-bersyarat-text: #EA580C;
+  --radius-md: 12px;
+  --shadow-card: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  padding: 24px 16px;
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.header-panel {
+  background: var(--surface);
+  padding: 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-card);
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mazhab-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.mazhab-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.text-arabic {
+  font-family: 'Amiri', serif;
+  font-size: 1.25rem;
+  direction: rtl;
+  text-align: right;
+  background: var(--bg-main);
+  padding: 10px;
+  border-radius: 8px;
+  border-right: 3px solid var(--primary-emerald);
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+.badge-membatalkan { background: var(--badge-batal-bg); color: var(--badge-batal-text); }
+.badge-tidak-membatalkan { background: var(--badge-harus-bg); color: var(--badge-harus-text); }
+.badge-bersyarat { background: var(--badge-bersyarat-bg); color: var(--badge-bersyarat-text); }
+
+.turath-box {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  background: #FFFBEB;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #FDE68A;
+}
+
+.tarjih-banner {
+  background: var(--primary-emerald);
+  color: #fff;
+  border-radius: var(--radius-md);
+  padding: 20px;
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .mazhab-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+  }
+  .mazhab-card {
+    min-width: 85%;
+    scroll-snap-align: center;
+  }
+}
