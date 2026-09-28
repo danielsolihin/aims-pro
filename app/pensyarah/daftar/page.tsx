@@ -143,7 +143,7 @@ export default function DaftarPensyarah() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight 700, fontSize: '0.85rem', color: '#1e293b', marginBottom: '6px' }}>Kata Laluan Baru</label>
+            <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', color: '#1e293b', marginBottom: '6px' }}>Kata Laluan Baru</label>
             <input 
               type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} 
               placeholder="Minimum 6 aksara" 
