@@ -39,10 +39,33 @@ export default function UrusTugasanPage() {
   const fetchAssignments = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('assignments')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // 1. Dapatkan Sesi Pensyarah yang sedang log masuk
+      const { data: { session } } = await supabase.auth.getSession();
+      const secretUserId = session?.user?.id;
+
+      if (!secretUserId) {
+        router.push('/login');
+        return;
+      }
+
+      // 2. Dapatkan nama profil dari jadual 'profiles'
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', secretUserId)
+        .single();
+
+      const lectName = profile?.full_name || session?.user?.user_metadata?.full_name || '';
+
+      // 3. Tapis tugasan KHAS untuk pensyarah ini sahaja
+      let assignQuery = supabase.from('assignments').select('*');
+      if (lectName && lectName.trim() !== '') {
+        assignQuery = assignQuery.or(`lecturer_id.eq.${secretUserId},nama_pensyarah.eq.${lectName}`);
+      } else {
+        assignQuery = assignQuery.eq('lecturer_id', secretUserId);
+      }
+
+      const { data, error } = await assignQuery.order('created_at', { ascending: false });
 
       if (error) throw error;
       setAssignments(data || []);
@@ -318,7 +341,6 @@ export default function UrusTugasanPage() {
                         </div>
                       </td>
                       <td style={{ padding: '16px', verticalAlign: 'middle' }}>
-                        {/* Butang "Edit" dan "Padam" diselarikan (Sama saiz lebar) */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '90px', marginLeft: 'auto' }}>
                           <button onClick={() => openEditModal(assignment)} style={{ width: '100%', background: '#f8fafc', border: '1px solid #cbd5e1', padding: '6px 0', borderRadius: '6px', cursor: 'pointer', color: '#2563eb', fontWeight: 500, fontSize: '0.85rem' }}>
                             ✏️ Edit
