@@ -49,13 +49,13 @@ export default function DaftarPensyarah() {
       if (authError) throw authError;
 
       // 3. SIMPAN PROFIL PENSYARAH KE JADUAL 'profiles'
+      // KOD DIKEMASKINI: Baris 'email' telah dibuang supaya tak bertembung dengan Supabase
       if (data.user) {
         const { error: profileError } = await supabase
           .from('profiles')
           .insert([
             {
               id: data.user.id,
-              email: email,
               full_name: fullName,
               role: 'pensyarah'
             }
