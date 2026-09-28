@@ -35,7 +35,7 @@ export default function DaftarPensyarah() {
 
     try {
       // 2. Daftar ke Supabase Auth
-      const { data, error } = await supabase.auth.signUp({
+      const { data, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -46,11 +46,30 @@ export default function DaftarPensyarah() {
         }
       });
 
-      if (error) throw error;
+      if (authError) throw authError;
+
+      // 3. SIMPAN PROFIL PENSYARAH KE JADUAL 'profiles'
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([
+            {
+              id: data.user.id,
+              email: email,
+              full_name: fullName,
+              role: 'pensyarah'
+            }
+          ]);
+
+        if (profileError) {
+          console.error('Ralat simpan profil:', profileError.message);
+          throw new Error('Akaun dicipta tetapi gagal menyimpan profil: ' + profileError.message);
+        }
+      }
 
       setSuccessMsg('Pendaftaran berjaya! Akaun anda telah disahkan.');
       
-      // DIKEMASKINI: Bawa ke halaman login berpusat (/login) selepas 2 saat
+      // Bawa ke halaman login berpusat (/login) selepas 2 saat
       setTimeout(() => {
         router.push('/login');
       }, 2000);
@@ -124,7 +143,7 @@ export default function DaftarPensyarah() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', color: '#1e293b', marginBottom: '6px' }}>Kata Laluan Baru</label>
+            <label style={{ display: 'block', fontWeight 700, fontSize: '0.85rem', color: '#1e293b', marginBottom: '6px' }}>Kata Laluan Baru</label>
             <input 
               type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} 
               placeholder="Minimum 6 aksara" 
