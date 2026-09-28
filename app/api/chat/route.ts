@@ -1,23 +1,30 @@
-import { supabase } from '@/lib/supabase';
-import OpenAI from 'openai';
+import { OpenAI } from 'openai';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { supabase } from '@/lib/supabase';
 
-const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-
+// Hanya SATU fungsi POST
 export async function POST(req: Request) {
+  // 1. Inisialisasi client AI DI DALAM fungsi POST
+  const openaiClient = new OpenAI({ 
+    apiKey: process.env.OPENAI_API_KEY || '' 
+  });
+  
+  const genAI = new GoogleGenerativeAI(
+    process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+  );
+
   try {
     const { messages, modCarian = 'online' } = await req.json(); // Default kepada 'online' (Mod Fatwa Global)
     const latestMessage = messages[messages.length - 1].content;
 
-    // 1. Penjanaan Embedding untuk Soalan Pengguna (1536 Dimensi)
+    // 2. Penjanaan Embedding untuk Soalan Pengguna (1536 Dimensi)
     const embeddingResponse = await openaiClient.embeddings.create({
       model: 'text-embedding-3-small',
       input: latestMessage,
     });
     const queryEmbedding = embeddingResponse.data[0].embedding;
 
-    // 2. Carian Hibrid (Vector + Full-Text Search) di Supabase
+    // 3. Carian Hibrid (Vector + Full-Text Search) di Supabase
     const isStrict = modCarian === 'strict_pdf';
     const { data: matchedFatwas, error } = await supabase.rpc('hybrid_search_fatwas', {
       query_text: latestMessage,      // Carian kata kunci FTS
@@ -54,7 +61,7 @@ export async function POST(req: Request) {
       ).join('\n\n---\n\n');
     }
 
-    // 3. Pembinaan System Prompt Mengikut Mod Carian
+    // 4. Pembinaan System Prompt Mengikut Mod Carian
     let systemPrompt = '';
 
     if (isStrict) {
@@ -132,9 +139,9 @@ PERATURAN PENTING UNTUK sumberRujukan:
 - Sertakan gabungan sumber pangkalan data (${JSON.stringify(availableSources)}) DAN senarai fatwa rasmi luaran bersama pautan URL rasmi (jika ada, cth: https://e-fatwa.gov.my atau portal rasmi mufti negeri) di dalam array sumberRujukan.`;
     }
 
-    // 5. Panggil Google Gemini menggunakan model gemini-3.6-flash
+    // 5. Panggil Google Gemini menggunakan model gemini-1.5-flash (3.6-flash ditukar kepada 1.5-flash)
     const model = genAI.getGenerativeModel({ 
-      model: 'gemini-3.6-flash',
+      model: 'gemini-1.5-flash',
       systemInstruction: systemPrompt,
       generationConfig: {
         // PERKARA PALING PENTING: Paksa Gemini keluar JSON sahaja
