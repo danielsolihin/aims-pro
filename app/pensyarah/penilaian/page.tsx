@@ -39,9 +39,53 @@ export default function PortalPenilaianPage() {
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
+      // 1. Dapatkan sesi pengguna (pensyarah) yang sedang log masuk
+      const { data: { session } } = await supabase.auth.getSession();
+      const secretUserId = session?.user?.id;
+
+      if (!secretUserId) {
+        setIsLoading(false);
+        router.push('/login');
+        return;
+      }
+
+      // 2. Dapatkan nama penuh profil rasmi
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', secretUserId)
+        .single();
+
+      const lectName = profileData?.full_name || session?.user?.user_metadata?.full_name || '';
+
+      // 3. Dapatkan senarai ID tugasan KHAS milik pensyarah ini sahaja
+      let assignQuery = supabase.from('assignments').select('id');
+      if (lectName && lectName.trim() !== '') {
+        assignQuery = assignQuery.or(`lecturer_id.eq.${secretUserId},nama_pensyarah.eq.${lectName}`);
+      } else {
+        assignQuery = assignQuery.eq('lecturer_id', secretUserId);
+      }
+
+      const { data: myAssignments, error: assignErr } = await assignQuery;
+      if (assignErr) throw assignErr;
+
+      const assignmentIds = (myAssignments || []).map((a: any) => a.id);
+
+      // Jika pensyarah baharu belum mempunyai sebarang tugasan
+      if (assignmentIds.length === 0) {
+        setStudentGroups([]);
+        setProgramList([]);
+        setCourseList([]);
+        setGroupClassList([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // 4. Ambil kumpulan projek hanya untuk tugasan milik pensyarah ini
       const { data: groupData, error: groupErr } = await supabase
         .from('student_groups')
-        .select('*, assignments(*), paper_submissions(*), group_members(*)');
+        .select('*, assignments(*), paper_submissions(*), group_members(*)')
+        .in('assignment_id', assignmentIds);
 
       if (groupErr) throw groupErr;
 
@@ -251,14 +295,12 @@ export default function PortalPenilaianPage() {
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#047857', marginBottom: '6px' }}>2. Kod Kursus (Subjek)</label>
-              {/* fontWeight ditukar dari 700 kepada 500 */}
               <select value={selectedCourse} onChange={(e) => handleCourseChange(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #10b981', background: '#ecfdf5', fontSize: '0.95rem', outline: 'none', color: '#064e3b', fontWeight: 500 }}>
                 {courseList.map((crs, i) => <option key={i} value={crs}>{crs}</option>)}
               </select>
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#047857', marginBottom: '6px' }}>3. Kumpulan / Kelas Rasmi</label>
-              {/* fontWeight ditukar dari 700 kepada 500 */}
               <select value={selectedGroupClass} onChange={(e) => handleGroupClassChange(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #3b82f6', background: '#eff6ff', fontSize: '0.95rem', outline: 'none', color: '#1e40af', fontWeight: 500 }}>
                 {groupClassList.map((grp, i) => <option key={i} value={grp}>{grp}</option>)}
               </select>

@@ -44,10 +44,23 @@ export default function PensyarahDashboard() {
     setIsLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
       const secretUserId = session?.user?.id; 
-      const lectName = session?.user?.user_metadata?.full_name || '';
-      const avatar = session?.user?.user_metadata?.avatar_url || '';
+
+      if (!secretUserId) {
+        setIsLoading(false);
+        router.push('/');
+        return;
+      }
+
+      // 1. Ambil data profil rasmi dari jadual 'profiles'
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', secretUserId)
+        .single();
+
+      const lectName = profileData?.full_name || session?.user?.user_metadata?.full_name || '';
+      const avatar = profileData?.avatar_url || session?.user?.user_metadata?.avatar_url || '';
       
       setLecturerName(lectName);
       setAvatarUrl(avatar);
@@ -59,22 +72,23 @@ export default function PensyarahDashboard() {
         setLastSignIn(loginDate.toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' }));
       }
 
-      if (!secretUserId) {
-        setIsLoading(false);
-        return;
+      // 2. Ambil tugasan KHAS untuk pensyarah yang log masuk sahaja
+      let assignQuery = supabase.from('assignments').select('*');
+
+      if (lectName && lectName.trim() !== '') {
+        assignQuery = assignQuery.or(`lecturer_id.eq.${secretUserId},nama_pensyarah.eq.${lectName}`);
+      } else {
+        assignQuery = assignQuery.eq('lecturer_id', secretUserId);
       }
 
-      const { data: assignData, error: assignErr } = await supabase
-        .from('assignments')
-        .select('*')
-        .or(`lecturer_id.eq.${secretUserId},nama_pensyarah.eq.${lectName}`)
-        .order('created_at', { ascending: false });
+      const { data: assignData, error: assignErr } = await assignQuery.order('created_at', { ascending: false });
         
       if (assignErr) throw assignErr;
       const fetchedAssignments = assignData || [];
       setAssignments(fetchedAssignments);
 
-      const unlinkedAssignments = fetchedAssignments.filter(a => !a.lecturer_id);
+      // Tautkan lecturer_id hanya jika nama pensyarah benar-benar padan
+      const unlinkedAssignments = fetchedAssignments.filter(a => !a.lecturer_id && a.nama_pensyarah === lectName);
       if (unlinkedAssignments.length > 0) {
         for (const task of unlinkedAssignments) {
           await supabase.from('assignments').update({ lecturer_id: secretUserId }).eq('id', task.id);
@@ -111,7 +125,6 @@ export default function PensyarahDashboard() {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
-      // DIKEMASKINI: Bawa pengguna ke Landing Page (Muka Depan)
       router.push('/');
     } catch (error: any) {
       alert("❌ Ralat log keluar: " + error.message);
@@ -294,13 +307,11 @@ export default function PensyarahDashboard() {
             </div>
           </div>
 
-          {/* MENUA AKSI PENSYARAH */}
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap', zIndex: 1, marginLeft: 'auto' }}>
             <Link href="/pensyarah/tugasan/cipta" className="action-btn" style={{ padding: '12px 20px', background: '#34d399', color: '#064e3b', borderRadius: '12px', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
               ➕ Cipta Tugasan
             </Link>
             
-            {/* BUTANG BAHARU: URUS TUGASAN */}
             <Link href="/pensyarah/urus-tugasan" className="action-btn" style={{ padding: '12px 20px', background: '#fef3c7', color: '#92400e', borderRadius: '12px', textDecoration: 'none', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', whiteSpace: 'nowrap' }}>
               ⚙️ Urus Tugasan
             </Link>
