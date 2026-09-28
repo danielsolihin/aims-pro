@@ -38,10 +38,13 @@ export default function LogMasukUtama() {
           throw new Error("Profil pengguna tidak dijumpai dalam pangkalan data. Sila hubungi Superadmin.");
         }
 
-        // 3. Hala tuju (Routing) berdasarkan peranan (role)
-        if (profile.role === 'superadmin') {
+        // Penukaran ke huruf kecil & penyingkiran ruang kosong untuk fleksibiliti
+        const userRole = profile.role?.toLowerCase().trim();
+
+        // 3. Hala tuju (Routing) fleksibel mengikut peranan
+        if (userRole === 'superadmin' || userRole === 'admin') {
           router.push('/admin/dashboard');
-        } else if (profile.role === 'lecturer') {
+        } else if (userRole === 'lecturer' || userRole === 'pensyarah') {
           router.push('/pensyarah/dashboard'); 
         } else {
           throw new Error("Peranan (Role) akaun anda tidak sah.");
@@ -137,7 +140,7 @@ export default function LogMasukUtama() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#1e293b', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight 700, color: '#1e293b', marginBottom: '6px' }}>
                   Kata Laluan
                 </label>
                 <input 
