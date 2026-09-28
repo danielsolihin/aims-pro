@@ -5,7 +5,10 @@ import OpenAI from 'openai';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// KODE BARU (Tambahkan nilai cadangan/fallback string kosong):
+const openai = new OpenAI({ 
+  apiKey: process.env.OPENAI_API_KEY || '' 
+});
 
 // Nyahkod teks PDF dengan selamat
 function safeDecodePdfText(encodedStr: string): string {
