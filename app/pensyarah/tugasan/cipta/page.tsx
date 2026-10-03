@@ -226,7 +226,7 @@ export default function CiptaTugasanPage() {
         
         {/* BARIS 1: Jenis Tugasan */}
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, color: '#334155', minWidth: '220px' }}>1. Format Penulisan:</div>
+          <div style={{ fontWeight: 700, color: '#334155', minWidth: '220px' }}>1. Jenis Tugasan:</div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: jenisTugasan === 'KERTAS_KERJA' ? 700 : 500, color: jenisTugasan === 'KERTAS_KERJA' ? '#065f46' : '#64748b' }}>
             <input type="radio" value="KERTAS_KERJA" checked={jenisTugasan === 'KERTAS_KERJA'} onChange={() => handleJenisChange('KERTAS_KERJA')} style={{ accentColor: '#065f46', width: '18px', height: '18px' }} />
             Kertas Kerja
@@ -241,7 +241,7 @@ export default function CiptaTugasanPage() {
 
         {/* BARIS 2: Pembentangan */}
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, color: '#334155', minWidth: '220px' }}>2. Adakah Pembentangan Video?</div>
+          <div style={{ fontWeight: 700, color: '#334155', minWidth: '220px' }}>2. Perlukan Pembentangan?</div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: adaPembentangan ? 700 : 500, color: adaPembentangan ? '#065f46' : '#64748b' }}>
             <input type="radio" checked={adaPembentangan === true} onChange={() => setAdaPembentangan(true)} style={{ accentColor: '#065f46', width: '18px', height: '18px' }} />
             Ya, Perlu Bentang
