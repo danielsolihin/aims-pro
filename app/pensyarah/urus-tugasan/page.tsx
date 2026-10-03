@@ -14,6 +14,7 @@ export default function UrusTugasanPage() {
   const [selectedProgram, setSelectedProgram] = useState<string>('');
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedGroupClass, setSelectedGroupClass] = useState<string>('');
+  const [selectedType, setSelectedType] = useState<string>(''); // Filter Jenis Tugasan
 
   // State Pilihan Pukal (Select All / Bulk Selection)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -28,6 +29,7 @@ export default function UrusTugasanPage() {
     nama_kursus: '',
     program_pengajian: '',
     kumpulan_pelajar: '',
+    jenis_tugasan: 'KERTAS_KERJA', // Bawa jenis tugasan untuk logic Edit
     markah_kertas_kerja: 30,
     markah_pembentangan: 30
   });
@@ -112,18 +114,30 @@ export default function UrusTugasanPage() {
     setSelectedIds([]);
   };
 
+  const handleTypeChange = (val: string) => {
+    setSelectedType(val);
+    setSelectedIds([]);
+  };
+
   const resetFilters = () => {
     setSelectedProgram('');
     setSelectedCourse('');
     setSelectedGroupClass('');
+    setSelectedType('');
     setSelectedIds([]);
   };
 
-  const filteredAssignments = assignments.filter((a: any) =>
-    (!selectedProgram || a.program_pengajian === selectedProgram) &&
-    (!selectedCourse || a.kod_kursus === selectedCourse) &&
-    (!selectedGroupClass || a.kumpulan_pelajar === selectedGroupClass)
-  );
+  const filteredAssignments = assignments.filter((a: any) => {
+    const isProgramMatch = !selectedProgram || a.program_pengajian === selectedProgram;
+    const isCourseMatch = !selectedCourse || a.kod_kursus === selectedCourse;
+    const isGroupMatch = !selectedGroupClass || a.kumpulan_pelajar === selectedGroupClass;
+    
+    // Logik untuk jenis tugasan (Fallback jika undefined = KERTAS_KERJA)
+    const dbType = a.jenis_tugasan || 'KERTAS_KERJA';
+    const isTypeMatch = !selectedType || dbType === selectedType;
+
+    return isProgramMatch && isCourseMatch && isGroupMatch && isTypeMatch;
+  });
 
   // ==========================================
   // LOGIK PILIH SEMUA (SELECT ALL)
@@ -190,6 +204,7 @@ export default function UrusTugasanPage() {
       nama_kursus: assignment.nama_kursus || '',
       program_pengajian: assignment.program_pengajian || '',
       kumpulan_pelajar: assignment.kumpulan_pelajar || '',
+      jenis_tugasan: assignment.jenis_tugasan || 'KERTAS_KERJA', // Simpan state jenis
       markah_kertas_kerja: assignment.markah_kertas_kerja ?? 30,
       markah_pembentangan: assignment.markah_pembentangan ?? 30
     });
@@ -207,7 +222,8 @@ export default function UrusTugasanPage() {
         program_pengajian: editForm.program_pengajian,
         kumpulan_pelajar: editForm.kumpulan_pelajar,
         markah_kertas_kerja: Number(editForm.markah_kertas_kerja) || 30,
-        markah_pembentangan: Number(editForm.markah_pembentangan) || 30
+        // Jika kajian kes, markah pembentangan automatik 0
+        markah_pembentangan: editForm.jenis_tugasan === 'KAJIAN_KES' ? 0 : (Number(editForm.markah_pembentangan) || 30)
       };
 
       const { error } = await supabase.from('assignments').update(fullPayload).eq('id', editForm.id);
@@ -250,14 +266,14 @@ export default function UrusTugasanPage() {
             <h3 style={{ margin: 0, color: '#0f172a', fontSize: '1rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
               🔍 Tapis Paparan Tugasan
             </h3>
-            {(selectedProgram || selectedCourse || selectedGroupClass) && (
+            {(selectedProgram || selectedCourse || selectedGroupClass || selectedType) && (
               <button onClick={resetFilters} style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', padding: '6px 14px', borderRadius: '8px', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
                 🔄 Set Semula Penapis
               </button>
             )}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#0f766e', marginBottom: '6px' }}>1. Fakulti / Program Pengajian</label>
               <select value={selectedProgram} onChange={(e) => handleProgramChange(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.9rem', outline: 'none', color: '#334155', fontWeight: 400 }}>
@@ -277,6 +293,14 @@ export default function UrusTugasanPage() {
               <select value={selectedGroupClass} onChange={(e) => handleGroupClassChange(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #3b82f6', background: '#eff6ff', fontSize: '0.9rem', outline: 'none', color: '#1e40af', fontWeight: 400 }}>
                 <option value="">-- Semua Kelas Rasmi ({groupClassList.length}) --</option>
                 {groupClassList.map((grp, i) => <option key={i} value={grp}>{grp}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#0f766e', marginBottom: '6px' }}>4. Jenis Tugasan</label>
+              <select value={selectedType} onChange={(e) => handleTypeChange(e.target.value)} style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid #8b5cf6', background: '#f5f3ff', fontSize: '0.9rem', outline: 'none', color: '#5b21b6', fontWeight: 400 }}>
+                <option value="">-- Semua Jenis --</option>
+                <option value="KERTAS_KERJA">Kertas Kerja & Video</option>
+                <option value="KAJIAN_KES">Kajian Kes / Review</option>
               </select>
             </div>
           </div>
@@ -314,6 +338,9 @@ export default function UrusTugasanPage() {
               ) : (
                 filteredAssignments.map((assignment, idx) => {
                   const isSelected = selectedIds.includes(assignment.id);
+                  const dbType = assignment.jenis_tugasan || 'KERTAS_KERJA';
+                  const isKajianKes = dbType === 'KAJIAN_KES';
+
                   return (
                     <tr key={assignment.id} style={{ borderBottom: '1px solid #f1f5f9', background: isSelected ? '#f0fdfa' : 'transparent' }}>
                       <td style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>
@@ -325,6 +352,11 @@ export default function UrusTugasanPage() {
                         <div style={{ fontSize: '0.85rem', color: '#64748b', fontWeight: 400, marginTop: '2px' }}>{assignment.nama_kursus}</div>
                       </td>
                       <td style={{ padding: '16px', maxWidth: '350px', verticalAlign: 'middle' }}>
+                        <div style={{ marginBottom: '6px' }}>
+                          <span style={{ background: isKajianKes ? '#f3e8ff' : '#e0f2fe', color: isKajianKes ? '#7e22ce' : '#0369a1', padding: '2px 8px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700 }}>
+                            {isKajianKes ? '[KAJIAN KES]' : '[KERTAS KERJA]'}
+                          </span>
+                        </div>
                         <div style={{ fontWeight: 600, color: '#0f766e' }}>{assignment.title}</div>
                         <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 400, marginTop: '4px' }}>
                           {assignment.program_pengajian} <span style={{ color: '#94a3b8' }}>({assignment.kumpulan_pelajar})</span>
@@ -335,9 +367,13 @@ export default function UrusTugasanPage() {
                           <span style={{ background: '#ecfdf5', color: '#047857', padding: '4px 10px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 400, display: 'flex', alignItems: 'center', gap: '4px' }}>
                             📄 <strong style={{ fontWeight: 600 }}>{assignment.markah_kertas_kerja ?? 30}M</strong>
                           </span>
-                          <span style={{ background: '#fffbeb', color: '#b45309', padding: '4px 10px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 400, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            🗣️ <strong style={{ fontWeight: 600 }}>{assignment.markah_pembentangan ?? 30}M</strong>
-                          </span>
+                          
+                          {/* Sembunyikan ikon markah pembentangan jika ia adalah Kajian Kes */}
+                          {!isKajianKes && (
+                            <span style={{ background: '#fffbeb', color: '#b45309', padding: '4px 10px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 400, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              🗣️ <strong style={{ fontWeight: 600 }}>{assignment.markah_pembentangan ?? 30}M</strong>
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td style={{ padding: '16px', verticalAlign: 'middle' }}>
@@ -400,10 +436,14 @@ export default function UrusTugasanPage() {
                   <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#047857', marginBottom: '6px' }}>Markah Max: Kertas Kerja</label>
                   <input type="number" required value={editForm.markah_kertas_kerja} onChange={(e) => setEditForm({...editForm, markah_kertas_kerja: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #10b981', background: '#ecfdf5', outline: 'none', fontWeight: 600, color: '#047857' }} />
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#b45309', marginBottom: '6px' }}>Markah Max: Pembentangan</label>
-                  <input type="number" required value={editForm.markah_pembentangan} onChange={(e) => setEditForm({...editForm, markah_pembentangan: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #f59e0b', background: '#fffbeb', outline: 'none', fontWeight: 600, color: '#b45309' }} />
-                </div>
+                
+                {/* Sembunyikan input edit markah pembentangan jika ia adalah Kajian Kes */}
+                {editForm.jenis_tugasan !== 'KAJIAN_KES' && (
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: '#b45309', marginBottom: '6px' }}>Markah Max: Pembentangan</label>
+                    <input type="number" required value={editForm.markah_pembentangan} onChange={(e) => setEditForm({...editForm, markah_pembentangan: Number(e.target.value)})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #f59e0b', background: '#fffbeb', outline: 'none', fontWeight: 600, color: '#b45309' }} />
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '12px', marginTop: '10px' }}>

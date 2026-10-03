@@ -54,7 +54,6 @@ function InfoTugasanContent() {
     setIsLocking(true);
 
     try {
-      // 1. SEMAKAN PINTAR - Pastikan tajuk belum "dikebas" oleh kumpulan lain sewaktu pelajar sedang membaca info ini.
       const { data: checkData, error: checkErr } = await supabase
         .from('student_groups')
         .select('id')
@@ -69,7 +68,6 @@ function InfoTugasanContent() {
          return;
       }
 
-      // 2. SIMPAN REKOD KUMPULAN DI PANGKALAN DATA
       const { data: groupData, error: groupErr } = await supabase
         .from('student_groups')
         .insert([{ 
@@ -82,7 +80,6 @@ function InfoTugasanContent() {
       if (groupErr) throw groupErr;
       const newGroupId = groupData.id;
 
-      // 3. SIMPAN REKOD NAMA & MATRIK AHLI KUMPULAN
       const membersData = members.map((m: any) => ({
         group_id: newGroupId,
         student_name: m.name.toUpperCase(),
@@ -95,13 +92,8 @@ function InfoTugasanContent() {
 
       if (membersErr) throw membersErr;
 
-      // 4. MESEJ BERJAYA & HALA KE DASHBOARD
       alert("🎉 Tahniah! Tajuk ini secara rasmi telah didaftarkan di bawah kumpulan anda.");
-      
-      // Bersihkan memori cache browser selepas berjaya daftar
       sessionStorage.removeItem('tempGroupData'); 
-      
-      // Lompat terus ke Dashboard Pelajar supaya mereka boleh semak status terkini
       router.push('/pelajar/dashboard');
 
     } catch (error: any) {
@@ -119,6 +111,12 @@ function InfoTugasanContent() {
   }
 
   const displayDate = assignment.tarikh_akhir || assignment.due_date;
+  
+  // LOGIK DIPERKETATKAN: Guna ?? (Nullish Coalescing) supaya angka 0 dibaca sebagai 0, bukan di-skip.
+  const presentationScore = Number(assignment.markah_pembentangan ?? assignment.presentation_weight ?? 0);
+  const paperScore = Number(assignment.markah_kertas_kerja ?? assignment.paper_weight ?? 30);
+  
+  const hasVideo = presentationScore > 0;
 
   return (
     <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -126,8 +124,8 @@ function InfoTugasanContent() {
       {/* HEADER & BUTANG KEMBALI */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ color: '#0ea5e9', fontWeight: 700, fontSize: '0.9rem', marginBottom: '8px' }}>Langkah Pengesahan Akhir</div>
-          <h1 style={{ margin: '0 0 12px 0', color: '#0f172a', fontSize: '2rem', fontWeight: 800 }}>Maklumat Kertas Kerja</h1>
+          <div style={{ color: '#0ea5e9', fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px' }}>Langkah Pengesahan Akhir</div>
+          <h1 style={{ margin: '0 0 12px 0', color: '#0f172a', fontSize: '2rem', fontWeight: 700 }}>Maklumat Tugasan</h1>
           <p style={{ margin: 0, color: '#64748b', fontSize: '1rem' }}>Sila semak butiran tugasan di bawah sebelum meneruskan proses pendaftaran kumpulan.</p>
         </div>
         
@@ -146,18 +144,18 @@ function InfoTugasanContent() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
           <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
             <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>KOD & NAMA KURSUS</span>
-            <div style={{ fontSize: '1.1rem', color: '#0f172a', fontWeight: 700, marginTop: '4px' }}>{assignment.kod_kursus}</div>
+            <div style={{ fontSize: '1.1rem', color: '#0f172a', fontWeight: 600, marginTop: '4px' }}>{assignment.kod_kursus}</div>
             <div style={{ fontSize: '0.95rem', color: '#334155', marginTop: '2px' }}>{assignment.nama_kursus || 'Tiada maklumat'}</div>
           </div>
 
           <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
             <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>KUMPULAN PELAJAR</span>
-            <div style={{ fontSize: '1.1rem', color: '#0f766e', fontWeight: 700, marginTop: '4px' }}>{assignment.kumpulan_pelajar}</div>
+            <div style={{ fontSize: '1.1rem', color: '#0f766e', fontWeight: 600, marginTop: '4px' }}>{assignment.kumpulan_pelajar}</div>
           </div>
 
           <div style={{ background: '#f8fafc', padding: '16px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
             <span style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 700 }}>PENSYARAH PENILAI</span>
-            <div style={{ fontSize: '1.1rem', color: '#0f172a', fontWeight: 700, marginTop: '4px' }}>{assignment.nama_pensyarah || 'Pensyarah Kursus'}</div>
+            <div style={{ fontSize: '1.1rem', color: '#0f172a', fontWeight: 600, marginTop: '4px' }}>{assignment.nama_pensyarah || 'Pensyarah Kursus'}</div>
           </div>
         </div>
       </section>
@@ -168,7 +166,7 @@ function InfoTugasanContent() {
         
         <div style={{ marginBottom: '20px', background: '#ecfdf5', padding: '20px', borderRadius: '12px', border: '1px solid #10b981' }}>
           <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 700 }}>TAJUK UTAMA TUGASAN</span>
-          <div style={{ fontSize: '1.3rem', color: '#064e3b', fontWeight: 800, marginTop: '8px', lineHeight: 1.4 }}>
+          <div style={{ fontSize: '1.25rem', color: '#064e3b', fontWeight: 600, marginTop: '8px', lineHeight: 1.4 }}>
             {assignment.title}
           </div>
         </div>
@@ -195,31 +193,41 @@ function InfoTugasanContent() {
         <h3 style={{ margin: '0 0 16px 0', color: '#065f46', fontSize: '1.1rem', borderBottom: '2px dashed #a7f3d0', paddingBottom: '12px' }}>⚖️ 3. Agihan Markah & Tarikh Akhir</h3>
         
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+          
           <div style={{ background: '#f0fdf4', padding: '16px', borderRadius: '12px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: '#166534', fontWeight: 700 }}>MARKAH KERTAS KERJA</span>
-            <div style={{ fontSize: '1.6rem', color: '#14532d', fontWeight: 800, marginTop: '4px' }}>{assignment.paper_weight || assignment.markah_kertas_kerja || 30}M</div>
+            <span style={{ fontSize: '0.85rem', color: '#166534', fontWeight: 700 }}>
+              MARKAH {assignment.jenis_tugasan === 'KAJIAN_KES' ? 'KAJIAN KES' : 'KERTAS KERJA'}
+            </span>
+            <div style={{ fontSize: '1.5rem', color: '#14532d', fontWeight: 600, marginTop: '4px' }}>
+              {paperScore}M
+            </div>
           </div>
 
-          <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '12px', border: '1px solid #fde68a', textAlign: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: '#b45309', fontWeight: 700 }}>MARKAH VIDEO INDIVIDU</span>
-            <div style={{ fontSize: '1.6rem', color: '#78350f', fontWeight: 800, marginTop: '4px' }}>{assignment.presentation_weight || assignment.markah_pembentangan || 30}M</div>
-          </div>
+          {hasVideo && (
+            <div style={{ background: '#fffbeb', padding: '16px', borderRadius: '12px', border: '1px solid #fde68a', textAlign: 'center' }}>
+              <span style={{ fontSize: '0.85rem', color: '#b45309', fontWeight: 700 }}>MARKAH PEMBENTANGAN</span>
+              <div style={{ fontSize: '1.5rem', color: '#78350f', fontWeight: 600, marginTop: '4px' }}>
+                {presentationScore}M
+              </div>
+            </div>
+          )}
 
           <div style={{ background: '#fef2f2', padding: '16px', borderRadius: '12px', border: '1px solid #fecaca', textAlign: 'center' }}>
             <span style={{ fontSize: '0.85rem', color: '#b91c1c', fontWeight: 700 }}>TARIKH AKHIR SERAHAN</span>
-            <div style={{ fontSize: '1.1rem', color: '#7f1d1d', fontWeight: 800, marginTop: '12px' }}>
+            <div style={{ fontSize: '1.1rem', color: '#7f1d1d', fontWeight: 600, marginTop: '12px' }}>
               {displayDate ? new Date(displayDate).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Belum Ditetapkan'}
             </div>
           </div>
+          
         </div>
       </section>
 
-      {/* BUTANG PENDAFTARAN (DITAUTKAN DENGAN LOGIK DATABASE) */}
+      {/* BUTANG PENDAFTARAN */}
       <div style={{ display: 'flex', gap: '16px', marginTop: '10px' }}>
         <button 
           onClick={handlePilihTajuk} 
           disabled={isLocking}
-          style={{ width: '100%', padding: '20px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#fff', border: 'none', borderRadius: '16px', fontWeight: 800, fontSize: '1.2rem', cursor: isLocking ? 'not-allowed' : 'pointer', boxShadow: '0 10px 25px rgba(5, 150, 105, 0.3)', transition: 'transform 0.1s' }}
+          style={{ width: '100%', padding: '18px', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', color: '#fff', border: 'none', borderRadius: '14px', fontWeight: 700, fontSize: '1.1rem', cursor: isLocking ? 'not-allowed' : 'pointer', boxShadow: '0 8px 20px rgba(5, 150, 105, 0.25)', transition: 'transform 0.1s' }}
           onMouseEnter={(e) => { if(!isLocking) e.currentTarget.style.transform = 'translateY(-2px)'; }}
           onMouseLeave={(e) => { if(!isLocking) e.currentTarget.style.transform = 'translateY(0)'; }}
         >

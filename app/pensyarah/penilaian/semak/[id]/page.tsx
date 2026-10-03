@@ -124,7 +124,7 @@ export default function SemakanPenilaianPage({ params }: { params: Promise<{ id:
 
       const { error } = await supabase.from('paper_submissions').update({ ai_analysis: updatedAiAnalysis }).eq('id', submissionData.id);
       if (error) throw error;
-      alert("✅ Markah Kumpulan dan Individu berjaya direkodkan!");
+      alert("✅ Markah berjaya direkodkan!");
     } catch (e: any) {
       alert("Gagal menyimpan markah. Sila cuba lagi.");
     } finally {
@@ -137,10 +137,12 @@ export default function SemakanPenilaianPage({ params }: { params: Promise<{ id:
 
   const assignment = groupData.assignments;
   
-  // MAX MARKAH DINAMIK
+  // LOGIK MENGENALPASTI JENIS DAN STATUS VIDEO
+  const isKajianKes = assignment?.jenis_tugasan === 'KAJIAN_KES';
   const maxPaper = Number(assignment?.markah_kertas_kerja || 30);
-  const maxPres = Number(assignment?.markah_pembentangan || 30);
-  const maxCriteria = maxPres / 5;
+  const maxPres = Number(assignment?.markah_pembentangan ?? assignment?.presentation_weight ?? 0);
+  const hasVideo = maxPres > 0;
+  const maxCriteria = hasVideo ? maxPres / 5 : 0;
 
   const handleMarkChange = (studentId: string, field: string, value: string) => {
     let numVal = parseFloat(value);
@@ -164,11 +166,13 @@ export default function SemakanPenilaianPage({ params }: { params: Promise<{ id:
               <input type="checkbox" checked readOnly style={{ width: '18px', height: '18px', marginTop: '4px', accentColor: '#10b981' }} />
               <div>
                 <h3 style={{ margin: '0 0 6px 0', color: '#0f172a', fontSize: '1.1rem', fontWeight: 600 }}>{assignment?.kumpulan_pelajar} - {groupData.group_name}</h3>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.95rem' }}><span style={{ color: '#ef4444' }}>📌</span> {assignment?.title}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#475569', fontSize: '0.95rem' }}>
+                  <span style={{ color: '#ef4444' }}>📌</span> {assignment?.title}
+                </div>
               </div>
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
-              <span style={{ background: '#064e3b', color: '#fff', padding: '6px 16px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600 }}>✓ Telah Disemak</span>
+              <span style={{ background: '#064e3b', color: '#fff', padding: '6px 16px', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600 }}>✓ Semakan Aktif</span>
             </div>
           </div>
         </div>
@@ -182,9 +186,11 @@ export default function SemakanPenilaianPage({ params }: { params: Promise<{ id:
           <div style={{ padding: '24px' }}>
             
             {/* PAPER MARK */}
-            <div style={{ background: '#ecfdf5', borderRadius: '12px', border: '1px solid #a7f3d0', padding: '24px', marginBottom: '30px' }}>
+            <div style={{ background: '#ecfdf5', borderRadius: '12px', border: '1px solid #a7f3d0', padding: '24px', marginBottom: hasVideo ? '30px' : '0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
-                <h3 style={{ margin: 0, color: '#064e3b', fontSize: '1.15rem', fontWeight: 700 }}>📄 Markah Kertas Kerja Kumpulan</h3>
+                <h3 style={{ margin: 0, color: '#064e3b', fontSize: '1.15rem', fontWeight: 700 }}>
+                  📄 Markah {isKajianKes ? 'Penulisan / Kajian Kes' : 'Kertas Kerja'} Kumpulan
+                </h3>
                 <button onClick={() => router.push(`/pensyarah/penilaian/analisis/${groupId}`)} style={{ background: '#064e3b', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   📁 Papar Analisis Teks Penuh
                 </button>
@@ -202,115 +208,117 @@ export default function SemakanPenilaianPage({ params }: { params: Promise<{ id:
               </div>
             </div>
 
-            {/* PRESENTATION MARK */}
-            <div style={{ background: '#fffbeb', borderRadius: '16px', border: '1px solid #fde047', padding: '24px' }}>
-              
-              {/* TAB TOGGLE BERSEMUKA & VIDEO */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button 
-                    onClick={() => setActiveTab('bersemuka')} 
-                    style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: activeTab === 'bersemuka' ? '#b45309' : '#fef3c7', color: activeTab === 'bersemuka' ? '#fff' : '#b45309', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}
-                  >
-                    🧑‍🏫 Bersemuka
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('video')} 
-                    style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: activeTab === 'video' ? '#b45309' : '#fef3c7', color: activeTab === 'video' ? '#fff' : '#b45309', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}
-                  >
-                    🎥 Video
-                  </button>
+            {/* PRESENTATION MARK (HANYA MUNCUL JIKA ADA VIDEO / MARKAH BENTANG > 0) */}
+            {hasVideo && (
+              <div style={{ background: '#fffbeb', borderRadius: '16px', border: '1px solid #fde047', padding: '24px' }}>
+                
+                {/* TAB TOGGLE BERSEMUKA & VIDEO */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button 
+                      onClick={() => setActiveTab('bersemuka')} 
+                      style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: activeTab === 'bersemuka' ? '#b45309' : '#fef3c7', color: activeTab === 'bersemuka' ? '#fff' : '#b45309', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}
+                    >
+                      🧑‍🏫 Bersemuka
+                    </button>
+                    <button 
+                      onClick={() => setActiveTab('video')} 
+                      style={{ padding: '10px 20px', borderRadius: '8px', border: 'none', background: activeTab === 'video' ? '#b45309' : '#fef3c7', color: activeTab === 'video' ? '#fff' : '#b45309', fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem' }}
+                    >
+                      🎥 Video
+                    </button>
+                  </div>
+
+                  <span style={{ color: '#b45309', fontSize: '0.95rem', fontWeight: 700, background: '#fef3c7', padding: '8px 16px', borderRadius: '8px' }}>
+                    Markah Penuh: {maxPres}
+                  </span>
                 </div>
 
-                <span style={{ color: '#b45309', fontSize: '0.95rem', fontWeight: 700, background: '#fef3c7', padding: '8px 16px', borderRadius: '8px' }}>
-                  Markah Penuh: {maxPres}
-                </span>
-              </div>
+                <h3 style={{ margin: '0 0 20px 0', color: '#854d0e', fontSize: '1.2rem', fontWeight: 800 }}>
+                  {activeTab === 'bersemuka' ? '👥 Penilaian Individu Pembentangan (Bersemuka)' : '🎬 Penilaian Individu Pembentangan (Video)'}
+                </h3>
 
-              <h3 style={{ margin: '0 0 20px 0', color: '#854d0e', fontSize: '1.2rem', fontWeight: 800 }}>
-                {activeTab === 'bersemuka' ? '👥 Penilaian Individu Pembentangan (Bersemuka)' : '🎬 Penilaian Individu Pembentangan (Video)'}
-              </h3>
-
-              {/* KOTAK PAUTAN VIDEO (GAYA STATIK/STICKY) */}
-              {activeTab === 'video' && (
-                <div style={{ 
-                  position: 'sticky', 
-                  top: '20px', 
-                  zIndex: 50, 
-                  background: '#fff', 
-                  padding: '20px', 
-                  borderRadius: '16px', 
-                  border: '2px solid #f59e0b', 
-                  marginBottom: '30px',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.15)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#b45309', fontWeight: 700 }}>🎥 Video Pembentangan Pelajar</h4>
-                    {rawVideoUrl && (
-                      <a href={rawVideoUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'underline' }}>
-                        Buka di Tab Baru ↗
-                      </a>
+                {/* KOTAK PAUTAN VIDEO (GAYA STATIK/STICKY) */}
+                {activeTab === 'video' && (
+                  <div style={{ 
+                    position: 'sticky', 
+                    top: '20px', 
+                    zIndex: 50, 
+                    background: '#fff', 
+                    padding: '20px', 
+                    borderRadius: '16px', 
+                    border: '2px solid #f59e0b', 
+                    marginBottom: '30px',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.15)'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#b45309', fontWeight: 700 }}>🎥 Video Pembentangan Pelajar</h4>
+                      {rawVideoUrl && (
+                        <a href={rawVideoUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'underline' }}>
+                          Buka di Tab Baru ↗
+                        </a>
+                      )}
+                    </div>
+                    
+                    {embedVideoUrl ? (
+                      <div style={{ width: '100%', height: '400px', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
+                        <iframe 
+                          src={embedVideoUrl} 
+                          width="100%" 
+                          height="100%" 
+                          frameBorder="0" 
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                          allowFullScreen
+                        ></iframe>
+                      </div>
+                    ) : (
+                      <div style={{ background: '#fef3c7', padding: '20px', borderRadius: '12px', color: '#b45309', fontSize: '0.95rem', fontWeight: 600, textAlign: 'center', border: '1px dashed #fcd34d' }}>
+                        ⚠️ Kumpulan pelajar ini belum memuat naik pautan video pembentangan mereka secara berasingan.
+                      </div>
                     )}
                   </div>
-                  
-                  {embedVideoUrl ? (
-                    <div style={{ width: '100%', height: '400px', borderRadius: '12px', overflow: 'hidden', background: '#1e293b' }}>
-                      <iframe 
-                        src={embedVideoUrl} 
-                        width="100%" 
-                        height="100%" 
-                        frameBorder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowFullScreen
-                      ></iframe>
-                    </div>
-                  ) : (
-                    <div style={{ background: '#fef3c7', padding: '20px', borderRadius: '12px', color: '#b45309', fontSize: '0.95rem', fontWeight: 600, textAlign: 'center', border: '1px dashed #fcd34d' }}>
-                      ⚠️ Kumpulan pelajar ini belum memuat naik pautan video pembentangan mereka secara berasingan.
-                    </div>
-                  )}
+                )}
+
+                {/* SENARAI MARKAH PELAJAR */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {groupData.group_members?.map((member: any) => {
+                    const marks = individualMarks[member.id] || {};
+                    const total = calculateTotal(marks);
+
+                    return (
+                      <div key={member.id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #fde047', padding: '20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>{member.student_name}</h4>
+                          {total > 0 && <span style={{ background: '#d1fae5', color: '#059669', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700 }}>✓ Dinilai ({total} M)</span>}
+                        </div>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                          {[{ key: 'pengenalan', label: 'Pengenalan' }, { key: 'interaksi', label: 'Interaksi' }, { key: 'kreativiti', label: 'Kreativiti' }, { key: 'soal_jawab', label: 'Soal Jawab' }, { key: 'sahsiah', label: 'Sahsiah Diri' }].map(criteria => (
+                            <div key={criteria.key}>
+                              <label style={{ display: 'block', fontSize: '0.8rem', color: '#854d0e', fontWeight: 700, marginBottom: '6px' }}>{criteria.label} (/{maxCriteria})</label>
+                              <input 
+                                type="number" 
+                                min="0" 
+                                max={maxCriteria} 
+                                step="0.5" 
+                                value={marks[criteria.key] ?? ''} 
+                                onChange={(e) => handleMarkChange(member.id, criteria.key, e.target.value)} 
+                                style={{ width: '100%', padding: '10px', background: '#fef08a', border: '1px solid #fde047', borderRadius: '8px', textAlign: 'center', fontSize: '1.1rem', color: '#854d0e', fontWeight: 700, outline: 'none' }} 
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                          <input type="text" placeholder={`Komen prestasi pelajar ini...`} value={individualComments[member.id] || ''} onChange={(e) => setIndividualComments(prev => ({...prev, [member.id]: e.target.value}))} style={{ flex: 1, minWidth: '250px', padding: '14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
+                          <div style={{ background: '#d1fae5', padding: '14px 20px', borderRadius: '8px', color: '#064e3b', fontWeight: 700, fontSize: '1rem', border: '1px solid #a7f3d0' }}>Jumlah: {total} / {maxPres}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-
-              {/* SENARAI MARKAH PELAJAR */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                {groupData.group_members?.map((member: any) => {
-                  const marks = individualMarks[member.id] || {};
-                  const total = calculateTotal(marks);
-
-                  return (
-                    <div key={member.id} style={{ background: '#fff', borderRadius: '12px', border: '1px solid #fde047', padding: '20px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                        <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#0f172a', fontWeight: 700 }}>{member.student_name}</h4>
-                        {total > 0 && <span style={{ background: '#d1fae5', color: '#059669', padding: '4px 10px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 700 }}>✓ Dinilai ({total} M)</span>}
-                      </div>
-                      
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-                        {[{ key: 'pengenalan', label: 'Pengenalan' }, { key: 'interaksi', label: 'Interaksi' }, { key: 'kreativiti', label: 'Kreativiti' }, { key: 'soal_jawab', label: 'Soal Jawab' }, { key: 'sahsiah', label: 'Sahsiah Diri' }].map(criteria => (
-                          <div key={criteria.key}>
-                            <label style={{ display: 'block', fontSize: '0.8rem', color: '#854d0e', fontWeight: 700, marginBottom: '6px' }}>{criteria.label} (/{maxCriteria})</label>
-                            <input 
-                              type="number" 
-                              min="0" 
-                              max={maxCriteria} 
-                              step="0.5" 
-                              value={marks[criteria.key] ?? ''} 
-                              onChange={(e) => handleMarkChange(member.id, criteria.key, e.target.value)} 
-                              style={{ width: '100%', padding: '10px', background: '#fef08a', border: '1px solid #fde047', borderRadius: '8px', textAlign: 'center', fontSize: '1.1rem', color: '#854d0e', fontWeight: 700, outline: 'none' }} 
-                            />
-                          </div>
-                        ))}
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                        <input type="text" placeholder={`Komen prestasi pelajar ini...`} value={individualComments[member.id] || ''} onChange={(e) => setIndividualComments(prev => ({...prev, [member.id]: e.target.value}))} style={{ flex: 1, minWidth: '250px', padding: '14px', borderRadius: '8px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none' }} />
-                        <div style={{ background: '#d1fae5', padding: '14px 20px', borderRadius: '8px', color: '#064e3b', fontWeight: 700, fontSize: '1rem', border: '1px solid #a7f3d0' }}>Jumlah: {total} / {maxPres}</div>
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
-            </div>
+            )}
 
             <div style={{ marginTop: '30px', textAlign: 'right' }}>
               <button onClick={saveEvaluation} disabled={isSaving} style={{ background: '#064e3b', color: '#fff', border: 'none', padding: '16px 32px', borderRadius: '12px', fontWeight: 700, fontSize: '1.1rem', cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: '0 4px 12px rgba(6,78,59,0.2)' }}>

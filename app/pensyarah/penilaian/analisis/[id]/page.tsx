@@ -101,7 +101,6 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
     if (groupId) fetchPaper();
   }, [groupId]);
 
-  // ✅ ISI TEKS KE DALAM EDITOR SEBAIK SAHAJA PEMUATAN SELESAI & DOM SEDIA
   useEffect(() => {
     if (!isLoading && paperRef.current) {
       if (marks.length > 0) {
@@ -175,7 +174,6 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
           maxPaperMark: assignment?.markah_kertas_kerja || 30
         });
 
-        // Sokongan fallback kepada pelbagai nama kolum
         const textContent = validSubmission.text_content || validSubmission.content || validSubmission.paper_text || '';
         const textRef = validSubmission.text_references || validSubmission.references || '';
         
@@ -426,7 +424,12 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
     setHasUnsavedChanges(true);
   };
 
+  // LOGIK QC: Pengiraan Markah Semasa vs Markah Maksimum
   const calculateTotalScore = () => parseFloat((marks.reduce((sum, m) => sum + (Number(m.score) || 0), 0)).toFixed(1)); 
+  const currentTotal = calculateTotalScore();
+  const maxLimit = metaData.maxPaperMark || 30;
+  const isMelebihiHad = currentTotal > maxLimit;
+
   const formatStudentName = (name: string) => name ? name.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()) : 'Pelajar';
 
   if (isLoading) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc', color: '#064e3b', fontSize: '1.1rem', fontWeight: 500 }}>⏳ Memuatkan Dokumen...</div>;
@@ -447,8 +450,30 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
           
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button onClick={resetMarks} style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s' }}>🔄 Reset Markah</button>
-            <button onClick={saveToDatabase} disabled={isSaving || !hasUnsavedChanges} style={{ background: hasUnsavedChanges ? '#10b981' : '#f1f5f9', color: hasUnsavedChanges ? '#fff' : '#94a3b8', border: hasUnsavedChanges ? 'none' : '1px solid #cbd5e1', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, fontSize: '0.9rem', cursor: hasUnsavedChanges ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}>{isSaving ? '⏳ Menyimpan...' : hasUnsavedChanges ? '💾 Simpan Perubahan' : '✅ Telah Disimpan'}</button>
-            <button onClick={() => window.print()} style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>🖨️️ Cetak PDF</button>
+            
+            {/* Butang Simpan Diperketatkan (Terkunci jika lebih had) */}
+            <button 
+              onClick={saveToDatabase} 
+              disabled={isSaving || !hasUnsavedChanges || isMelebihiHad} 
+              style={{ 
+                background: isMelebihiHad ? '#94a3b8' : (hasUnsavedChanges ? '#10b981' : '#f1f5f9'), 
+                color: isMelebihiHad ? '#e2e8f0' : (hasUnsavedChanges ? '#fff' : '#94a3b8'), 
+                border: hasUnsavedChanges && !isMelebihiHad ? 'none' : '1px solid #cbd5e1', 
+                padding: '10px 20px', 
+                borderRadius: '8px', 
+                fontWeight: 700, 
+                fontSize: '0.9rem', 
+                cursor: (hasUnsavedChanges && !isMelebihiHad) ? 'pointer' : 'not-allowed', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px', 
+                transition: 'all 0.2s' 
+              }}
+            >
+              {isMelebihiHad ? '🔒 Had Markah Melebihi' : (isSaving ? '⏳ Menyimpan...' : hasUnsavedChanges ? '💾 Simpan Perubahan' : '✅ Telah Disimpan')}
+            </button>
+
+            <button onClick={() => window.print()} style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>🖨 Cetak PDF</button>
             <button onClick={runAIAnalysis} disabled={isAIAnalyzing || marks.length > 0} style={{ background: isAIAnalyzing || marks.length > 0 ? '#e2e8f0' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: isAIAnalyzing || marks.length > 0 ? '#94a3b8' : '#fff', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: 600, cursor: isAIAnalyzing || marks.length > 0 ? 'not-allowed' : 'pointer' }}>{isAIAnalyzing ? '⏳ AI Sedang Menganalisis...' : marks.length > 0 ? '✅ AI Selesai (Sila Reset)' : '✨ Jalankan Analisis AI'}</button>
           </div>
         </div>
@@ -469,18 +494,16 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
           <div className="no-print" style={{ background: '#f8fafc', padding: '16px 24px', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ margin: 0, fontSize: '1.1rem', color: '#334155', fontWeight: 600 }}>📄 Teks Kertas Kerja Pelajar</h2>
             
-            {/* Butang Togol Skrin Penuh */}
             <button 
               onClick={() => setIsFullscreen(!isFullscreen)} 
               style={{ background: isFullscreen ? '#ef4444' : '#0f172a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', transition: 'all 0.2s', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}
             >
-              {isFullscreen ? '↙️ Tutup Paparan Penuh' : '⛶ Paparan Penuh'}
+              {isFullscreen ? '↙️️ Tutup Paparan Penuh' : '⛶ Paparan Penuh'}
             </button>
           </div>
           
           <Toolbar editorRef={paperRef} />
 
-          {/* Wrapper Scroll (PENTING: minHeight: 100% & height: fit-content untuk atasi isu separuh latar belakang putih) */}
           <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: isFullscreen ? '30px 20px' : '0', background: isFullscreen ? '#cbd5e1' : '#fff' }}>
             
             <div style={{ width: '100%', maxWidth: isFullscreen ? '900px' : 'none', background: '#fff', minHeight: '100%', height: 'fit-content', borderRadius: isFullscreen ? '12px' : '0', boxShadow: isFullscreen ? '0 10px 30px rgba(0,0,0,0.15)' : 'none', display: 'flex', flexDirection: 'column' }}>
@@ -488,9 +511,14 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
               <div style={{ padding: '40px 40px 0 40px' }}>
                 <div style={{ position: 'relative', marginBottom: '24px', padding: '24px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '12px', fontFamily: 'system-ui, sans-serif' }}>
                   
-                  <div style={{ position: 'absolute', top: '-20px', right: '24px', background: '#064e3b', color: '#ffffff', padding: '10px 24px', borderRadius: '12px', fontWeight: 700, fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(6,78,59,0.25)', textAlign: 'center', lineHeight: '1.25', whiteSpace: 'nowrap', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}>
-                    <div style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', color: '#a7f3d0', marginBottom: '4px', letterSpacing: '0.5px' }}>JUMLAH MARKAH</div>
-                    <div>{calculateTotalScore()} / {metaData.maxPaperMark || 30} M</div> 
+                  {/* PAPARAN JUMLAH MARKAH (Warna Merah Jika Melebihi Had) */}
+                  <div style={{ 
+                    position: 'absolute', top: '-20px', right: '24px', 
+                    background: isMelebihiHad ? '#ef4444' : '#064e3b', 
+                    color: '#ffffff', padding: '10px 24px', borderRadius: '12px', fontWeight: 700, fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.2)', textAlign: 'center', lineHeight: '1.25', whiteSpace: 'nowrap', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', transition: 'background 0.3s' 
+                  }}>
+                    <div style={{ fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', color: isMelebihiHad ? '#fee2e2' : '#a7f3d0', marginBottom: '4px', letterSpacing: '0.5px' }}>JUMLAH MARKAH</div>
+                    <div>{currentTotal} / {maxLimit} M</div> 
                   </div>
 
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.95rem', color: '#1e293b' }}>
@@ -530,8 +558,17 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
               <h2 style={{ margin: 0, fontSize: '1.1rem', color: '#064e3b', fontWeight: 700 }}>📊 Panel Rincian Markah</h2>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
                 <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 500 }}>Jumlah Tandaan: {marks.length}</span>
-                <span style={{ fontSize: '0.85rem', color: '#047857', fontWeight: 700 }}>Total Kertas Kerja: {calculateTotalScore()} / {metaData.maxPaperMark || 30} M</span> 
+                <span style={{ fontSize: '0.85rem', color: isMelebihiHad ? '#dc2626' : '#047857', fontWeight: 700 }}>Total: {currentTotal} / {maxLimit} M</span> 
               </div>
+              
+              {/* NOTIS AMARAN MARKAH MELEBIHI HAD */}
+              {isMelebihiHad && (
+                <div style={{ background: '#fee2e2', border: '1px solid #f87171', color: '#b91c1c', padding: '10px 14px', borderRadius: '8px', marginTop: '12px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: '8px', lineHeight: 1.4 }}>
+                  <span>⚠️</span>
+                  <span>AMARAN: Jumlah markah ({currentTotal}M) melebihi had maksimum ({maxLimit}M). Sila selaraskan semula markah anda. Butang "Simpan" telah dikunci sementara.</span>
+                </div>
+              )}
+
             </div>
 
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', background: '#f8fafc' }}>
@@ -543,7 +580,7 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
                       <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>{mark.category}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button type="button" onClick={(e) => openEditModal(mark, e)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '1.1rem', cursor: 'pointer', padding: '2px 4px' }}>✏️️</button>
+                      <button type="button" onClick={(e) => openEditModal(mark, e)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '1.1rem', cursor: 'pointer', padding: '2px 4px' }}>✏</button>
                       <button type="button" onClick={(e) => deleteMark(mark.id, e)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1.2rem', cursor: 'pointer', padding: '2px 4px' }}>×</button>
                     </div>
                   </div>

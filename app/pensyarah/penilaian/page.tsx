@@ -14,6 +14,10 @@ export default function PortalPenilaianPage() {
   const [selectedProgram, setSelectedProgram] = useState<string>('');
   const [selectedCourse, setSelectedCourse] = useState<string>('');
   const [selectedGroupClass, setSelectedGroupClass] = useState<string>('');
+  const [selectedType, setSelectedType] = useState<string>(''); 
+
+  // State Tetingkap Modal Laporan
+  const [showReportModal, setShowReportModal] = useState<'pdf' | 'excel' | null>(null);
 
   // Senarai unik untuk Dropdown Filter
   const [programList, setProgramList] = useState<string[]>([]);
@@ -24,22 +28,18 @@ export default function PortalPenilaianPage() {
     fetchInitialData();
   }, []);
 
-  // --- FUNGSI SIMPAN PILIHAN KE MEMORI CACHE ---
-  const saveFilters = (prog: string, crs: string, grp: string) => {
+  const saveFilters = (prog: string, crs: string, grp: string, type: string) => {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('aims_sel_program', prog || '');
       sessionStorage.setItem('aims_sel_course', crs || '');
       sessionStorage.setItem('aims_sel_groupclass', grp || '');
-      localStorage.setItem('aims_sel_program', prog || '');
-      localStorage.setItem('aims_sel_course', crs || '');
-      localStorage.setItem('aims_sel_groupclass', grp || '');
+      sessionStorage.setItem('aims_sel_type', type || '');
     }
   };
 
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
-      // 1. Dapatkan sesi pengguna (pensyarah) yang sedang log masuk
       const { data: { session } } = await supabase.auth.getSession();
       const secretUserId = session?.user?.id;
 
@@ -49,7 +49,6 @@ export default function PortalPenilaianPage() {
         return;
       }
 
-      // 2. Dapatkan nama penuh profil rasmi
       const { data: profileData } = await supabase
         .from('profiles')
         .select('full_name')
@@ -58,7 +57,6 @@ export default function PortalPenilaianPage() {
 
       const lectName = profileData?.full_name || session?.user?.user_metadata?.full_name || '';
 
-      // 3. Dapatkan senarai ID tugasan KHAS milik pensyarah ini sahaja
       let assignQuery = supabase.from('assignments').select('id');
       if (lectName && lectName.trim() !== '') {
         assignQuery = assignQuery.or(`lecturer_id.eq.${secretUserId},nama_pensyarah.eq.${lectName}`);
@@ -71,7 +69,6 @@ export default function PortalPenilaianPage() {
 
       const assignmentIds = (myAssignments || []).map((a: any) => a.id);
 
-      // Jika pensyarah baharu belum mempunyai sebarang tugasan
       if (assignmentIds.length === 0) {
         setStudentGroups([]);
         setProgramList([]);
@@ -81,7 +78,6 @@ export default function PortalPenilaianPage() {
         return;
       }
 
-      // 4. Ambil kumpulan projek hanya untuk tugasan milik pensyarah ini
       const { data: groupData, error: groupErr } = await supabase
         .from('student_groups')
         .select('*, assignments(*), paper_submissions(*), group_members(*)')
@@ -95,10 +91,10 @@ export default function PortalPenilaianPage() {
       const programs = Array.from(new Set(fetchedGroups.map((g: any) => g.assignments?.program_pengajian).filter(Boolean))) as string[];
       setProgramList(programs);
 
-      // Semak simpanan memori terdahulu
-      const savedProgram = sessionStorage.getItem('aims_sel_program') || localStorage.getItem('aims_sel_program');
-      const savedCourse = sessionStorage.getItem('aims_sel_course') || localStorage.getItem('aims_sel_course');
-      const savedGroupClass = sessionStorage.getItem('aims_sel_groupclass') || localStorage.getItem('aims_sel_groupclass');
+      const savedProgram = sessionStorage.getItem('aims_sel_program');
+      const savedCourse = sessionStorage.getItem('aims_sel_course');
+      const savedGroupClass = sessionStorage.getItem('aims_sel_groupclass');
+      const savedType = sessionStorage.getItem('aims_sel_type');
 
       if (savedProgram && programs.includes(savedProgram)) {
         setSelectedProgram(savedProgram);
@@ -108,6 +104,8 @@ export default function PortalPenilaianPage() {
         setSelectedProgram(defaultProg);
         updateCourses(defaultProg, fetchedGroups, null, null);
       }
+
+      if (savedType) setSelectedType(savedType);
 
     } catch (err: any) {
       console.error("Ralat muat turun data portal:", err.message);
@@ -129,7 +127,7 @@ export default function PortalPenilaianPage() {
     } else {
       setGroupClassList([]);
       setSelectedGroupClass('');
-      saveFilters(program, '', '');
+      saveFilters(program, '', '', selectedType);
     }
   };
 
@@ -145,8 +143,7 @@ export default function PortalPenilaianPage() {
     const groupClassToUse = savedGroupClass && groupClasses.includes(savedGroupClass) ? savedGroupClass : groupClasses[0] || '';
     setSelectedGroupClass(groupClassToUse);
 
-    // Simpan kombinasi terkini yang sah
-    saveFilters(program, course, groupClassToUse);
+    saveFilters(program, course, groupClassToUse, selectedType);
   };
 
   const handleProgramChange = (val: string) => {
@@ -161,49 +158,155 @@ export default function PortalPenilaianPage() {
 
   const handleGroupClassChange = (val: string) => {
     setSelectedGroupClass(val);
-    saveFilters(selectedProgram, selectedCourse, val);
+    saveFilters(selectedProgram, selectedCourse, val, selectedType);
   };
 
-  // Tapis kumpulan projek berdasarkan hierarki
-  const filteredGroups = studentGroups.filter((g: any) => 
-    (!selectedProgram || g.assignments?.program_pengajian === selectedProgram) &&
-    (!selectedCourse || g.assignments?.kod_kursus === selectedCourse) &&
-    (!selectedGroupClass || g.assignments?.kumpulan_pelajar === selectedGroupClass)
-  );
+  const handleTypeChange = (val: string) => {
+    setSelectedType(val);
+    saveFilters(selectedProgram, selectedCourse, selectedGroupClass, val);
+  };
+
+  // Tapis paparan jadual di UI mengikut semua filter
+  const filteredGroups = studentGroups.filter((g: any) => {
+    const isProgramMatch = !selectedProgram || g.assignments?.program_pengajian === selectedProgram;
+    const isCourseMatch = !selectedCourse || g.assignments?.kod_kursus === selectedCourse;
+    const isGroupMatch = !selectedGroupClass || g.assignments?.kumpulan_pelajar === selectedGroupClass;
+    const dbType = g.assignments?.jenis_tugasan || 'KERTAS_KERJA';
+    const isTypeMatch = !selectedType || dbType === selectedType;
+    return isProgramMatch && isCourseMatch && isGroupMatch && isTypeMatch;
+  });
 
   // ==========================================
-  // FUNGSI MUAT TURUN EXCEL (CSV) & MARKAH CALC
+  // LOGIK PENGGABUNGAN LAPORAN (CONSOLIDATED)
   // ==========================================
-  const exportToExcel = () => {
-    let csvContent = "\uFEFFBil,No. Matrik,Nama Pelajar,Kumpulan,Markah Kertas Kerja (30M),Markah Pembentangan (30M),Jumlah Keseluruhan (60M)\n";
-    let count = 1;
+  const getCourseName = () => {
+    const group = studentGroups.find(g => g.assignments?.kod_kursus === selectedCourse);
+    return group?.assignments?.nama_kursus || 'N/A';
+  };
 
-    filteredGroups.forEach((group: any) => {
+  const getConsolidatedData = () => {
+    const studentMap = new Map();
+    if (!selectedCourse || !selectedGroupClass) return [];
+
+    const groupsForClass = studentGroups.filter((g: any) => 
+      g.assignments?.kod_kursus === selectedCourse &&
+      g.assignments?.kumpulan_pelajar === selectedGroupClass
+    );
+
+    groupsForClass.forEach((group: any) => {
+      const dbType = group.assignments?.jenis_tugasan || 'KERTAS_KERJA';
+      
       const submissions = group.paper_submissions || [];
       const latestSub = submissions.sort((a: any, b: any) => b.id - a.id)[0];
       const gradingData = latestSub?.ai_analysis?.grading_data || {};
       
       const paperMark = Number(gradingData.paperMark) || 0;
-
+      
       group.group_members?.forEach((member: any) => {
         const indMarks = gradingData.individualMarks?.[member.id] || {};
         const presMark = (Number(indMarks.pengenalan)||0) + (Number(indMarks.interaksi)||0) + (Number(indMarks.kreativiti)||0) + (Number(indMarks.soal_jawab)||0) + (Number(indMarks.sahsiah)||0);
-        const totalMark = paperMark + presMark;
+        
+        if (!studentMap.has(member.matrix_no)) {
+          studentMap.set(member.matrix_no, {
+            matrix_no: member.matrix_no || '-',
+            student_name: member.student_name,
+            kk_paper: 0,
+            kk_pres: 0,
+            kr_paper: 0,
+            kr_pres: 0,
+          });
+        }
 
-        csvContent += `"${count}","${member.matrix_no || '-'}","${member.student_name}","${group.group_name}","${paperMark}","${presMark}","${totalMark}"\n`;
-        count++;
+        const studentRecord = studentMap.get(member.matrix_no);
+
+        if (dbType === 'KAJIAN_KES') {
+           studentRecord.kr_paper = paperMark;
+           studentRecord.kr_pres = presMark;
+        } else {
+           studentRecord.kk_paper = paperMark;
+           studentRecord.kk_pres = presMark;
+        }
       });
     });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    return Array.from(studentMap.values()).sort((a, b) => a.student_name.localeCompare(b.student_name));
+  };
+
+  // ==========================================
+  // EKSPORT KE EXCEL (HTML Xls Format)
+  // ==========================================
+  const exportToExcel = () => {
+    const consolidatedData = getConsolidatedData();
+    const namaKursus = getCourseName();
+
+    // Membina struktur HTML khusus yang boleh dibaca oleh Microsoft Excel
+    let html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta charset="utf-8" />
+        <style>
+          .header-title { font-weight: bold; font-size: 14pt; }
+          .header-info { font-weight: bold; font-size: 11pt; }
+          .table-header { background-color: #a6a6a6; font-weight: bold; border: 1pt solid #000000; text-align: center; vertical-align: middle; padding: 5px; }
+          .table-cell { border: 1pt solid #000000; text-align: center; vertical-align: middle; padding: 4px; }
+          .table-cell-left { border: 1pt solid #000000; text-align: left; vertical-align: middle; padding: 4px; }
+        </style>
+      </head>
+      <body>
+        <table>
+          <tr><td colspan="8" class="header-title">MARKAH KESELURUHAN PENILAIAN BERTERUSAN</td></tr>
+          <tr><td colspan="8"></td></tr>
+          <tr><td colspan="8" class="header-info">KOD KURSUS : ${selectedCourse}</td></tr>
+          <tr><td colspan="8" class="header-info">NAMA KURSUS: ${namaKursus}</td></tr>
+          <tr><td colspan="8" class="header-info">KUMPULAN: ${selectedGroupClass}</td></tr>
+          <tr><td colspan="8"></td></tr>
+          <tr>
+            <td class="table-header" style="width: 40px;">BIL</td>
+            <td class="table-header" style="width: 120px;">NO. MATRIK</td>
+            <td class="table-header" style="width: 250px;">NAMA PELAJAR</td>
+            <td class="table-header" style="width: 120px;">KERTAS KERJA</td>
+            <td class="table-header" style="width: 150px;">PEMBENTANGAN (KK)</td>
+            <td class="table-header" style="width: 150px;">KAJIAN KES/REVIEW</td>
+            <td class="table-header" style="width: 150px;">PEMBENTANGAN (KR)</td>
+            <td class="table-header" style="width: 120px;">TOTAL MARKAH</td>
+          </tr>
+    `;
+
+    consolidatedData.forEach((student, index) => {
+      const total = student.kk_paper + student.kk_pres + student.kr_paper + student.kr_pres;
+      html += `
+          <tr>
+            <td class="table-cell">${index + 1}</td>
+            <td class="table-cell" style="mso-number-format:'\\@'">${student.matrix_no}</td>
+            <td class="table-cell-left">${student.student_name}</td>
+            <td class="table-cell">${student.kk_paper}</td>
+            <td class="table-cell">${student.kk_pres}</td>
+            <td class="table-cell">${student.kr_paper}</td>
+            <td class="table-cell">${student.kr_pres}</td>
+            <td class="table-cell"><b>${total}</b></td>
+          </tr>
+      `;
+    });
+
+    html += `
+        </table>
+      </body>
+      </html>
+    `;
+
+    // Save as .xls so Excel renders the HTML table cleanly
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.setAttribute("href", url);
-    link.setAttribute("download", `Laporan_Markah_${selectedCourse || 'Semua'}_${selectedGroupClass || 'Semua'}.csv`);
+    link.setAttribute("download", `Laporan_Markah_${selectedCourse}_${selectedGroupClass}.xls`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+  const isReadyToExport = selectedCourse !== '' && selectedGroupClass !== '';
+  const consolidatedDataPrint = getConsolidatedData();
 
   if (isLoading) {
     return (
@@ -213,38 +316,6 @@ export default function PortalPenilaianPage() {
     );
   }
 
-  // ==========================================
-  // PENYEDIAAN DATA UNTUK CETAKAN PDF (JADUAL TERSEMBUNYI)
-  // ==========================================
-  const renderPrintableTable = () => {
-    let count = 1;
-    return filteredGroups.flatMap((group: any) => {
-      const submissions = group.paper_submissions || [];
-      const latestSub = submissions.sort((a: any, b: any) => b.id - a.id)[0];
-      const gradingData = latestSub?.ai_analysis?.grading_data || {};
-      const paperMark = Number(gradingData.paperMark) || 0;
-
-      return (group.group_members || []).map((member: any) => {
-        const indMarks = gradingData.individualMarks?.[member.id] || {};
-        const presMark = (Number(indMarks.pengenalan)||0) + (Number(indMarks.interaksi)||0) + (Number(indMarks.kreativiti)||0) + (Number(indMarks.soal_jawab)||0) + (Number(indMarks.sahsiah)||0);
-        const totalMark = paperMark + presMark;
-        const currentCount = count++;
-
-        return (
-          <tr key={`${group.id}-${member.id}`} style={{ borderBottom: '1px solid #cbd5e1' }}>
-            <td style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{currentCount}</td>
-            <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{member.matrix_no || '-'}</td>
-            <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{member.student_name}</td>
-            <td style={{ padding: '8px', border: '1px solid #cbd5e1' }}>{group.group_name}</td>
-            <td style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{paperMark}</td>
-            <td style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'center' }}>{presMark}</td>
-            <td style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'center', fontWeight: 'bold' }}>{totalMark}</td>
-          </tr>
-        );
-      });
-    });
-  };
-
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '40px 20px', fontFamily: 'system-ui, sans-serif' }}>
       
@@ -253,13 +324,18 @@ export default function PortalPenilaianPage() {
         @media print {
           .no-print { display: none !important; }
           .print-only { display: block !important; }
-          body { background: #fff !important; margin: 0; padding: 0; }
+          @page { size: landscape; margin: 15mm; }
+          body { background: #fff !important; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+          
+          /* Khas supaya jadual data sahaja yang ada border penuh */
+          table.print-data-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          table.print-data-table th, table.print-data-table td { border: 1px solid #000; padding: 8px; font-size: 11px; }
+          table.print-data-table th { background-color: #e5e7eb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; font-weight: bold; text-align: center; }
         }
       `}} />
 
       <div className="no-print" style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
         
-        {/* HEADER PORTAL */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <h1 style={{ margin: '0 0 6px 0', fontSize: '1.8rem', color: '#064e3b', fontWeight: 800 }}>
@@ -269,7 +345,6 @@ export default function PortalPenilaianPage() {
               Pilih hierarki kelas dan semak serahan tugasan pelajar serta rincian markah AI.
             </p>
           </div>
-          
           <div style={{ display: 'flex', gap: '12px' }}>
             <button 
               onClick={() => router.push('/pensyarah/dashboard')}
@@ -280,13 +355,11 @@ export default function PortalPenilaianPage() {
           </div>
         </div>
 
-        {/* KAD HIERARKI KELAS & KUMPULAN */}
         <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
           <h3 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
             🔍 Pilih Hierarki Kelas & Kumpulan
           </h3>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#047857', marginBottom: '6px' }}>1. Fakulti / Program Pengajian</label>
               <select value={selectedProgram} onChange={(e) => handleProgramChange(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', background: '#fff', fontSize: '0.95rem', outline: 'none', color: '#0f172a', fontWeight: 500 }}>
@@ -305,13 +378,18 @@ export default function PortalPenilaianPage() {
                 {groupClassList.map((grp, i) => <option key={i} value={grp}>{grp}</option>)}
               </select>
             </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#047857', marginBottom: '6px' }}>4. Jenis Tugasan</label>
+              <select value={selectedType} onChange={(e) => handleTypeChange(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #8b5cf6', background: '#f5f3ff', fontSize: '0.95rem', outline: 'none', color: '#5b21b6', fontWeight: 500 }}>
+                <option value="">Semua Jenis</option>
+                <option value="KERTAS_KERJA">Kertas Kerja & Video</option>
+                <option value="KAJIAN_KES">Kajian Kes / Review</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* JADUAL REKOD KUMPULAN PROJEK */}
         <div style={{ background: '#fff', padding: '24px', borderRadius: '16px', border: '1px solid #cbd5e1', boxShadow: '0 4px 12px rgba(0,0,0,0.03)' }}>
-          
-          {/* HEADER JADUAL & BUTANG EKSPORT */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
             <div>
               <h3 style={{ margin: '0 0 4px 0', color: '#0f172a', fontSize: '1.2rem', fontWeight: 700 }}>👥 Rekod Kumpulan Projek Pelajar</h3>
@@ -322,10 +400,10 @@ export default function PortalPenilaianPage() {
               <span style={{ background: '#ecfdf5', color: '#047857', padding: '8px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', border: '1px solid #a7f3d0' }}>
                 {filteredGroups.length} Kumpulan
               </span>
-              <button onClick={() => window.print()} style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+              <button onClick={() => setShowReportModal('pdf')} style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
                 🖨️ Cetak PDF
               </button>
-              <button onClick={exportToExcel} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
+              <button onClick={() => setShowReportModal('excel')} style={{ background: '#16a34a', color: '#fff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.85rem', cursor: 'pointer' }}>
                 📊 Muat Turun Excel
               </button>
             </div>
@@ -337,16 +415,17 @@ export default function PortalPenilaianPage() {
                 <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e2e8f0', color: '#475569', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   <th style={{ padding: '14px' }}>No.</th>
                   <th style={{ padding: '14px' }}>Kumpulan Projek</th>
+                  <th style={{ padding: '14px' }}>Tugasan</th>
                   <th style={{ padding: '14px' }}>Ahli</th>
-                  <th style={{ padding: '14px' }}>Status Kertas Kerja</th>
+                  <th style={{ padding: '14px' }}>Status Serahan</th>
                   <th style={{ padding: '14px', textAlign: 'right' }}>Tindakan</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredGroups.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
-                      Tiada kumpulan projek didaftarkan untuk hierarki kelas ini.
+                    <td colSpan={6} style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+                      Tiada kumpulan projek didaftarkan untuk tapisan hierarki ini.
                     </td>
                   </tr>
                 ) : (
@@ -356,11 +435,18 @@ export default function PortalPenilaianPage() {
 
                     const isSubmitted = !!latestSub;
                     const isEvaluated = latestSub?.ai_analysis?.grading_data !== undefined && latestSub?.ai_analysis?.grading_data !== null;
+                    
+                    const isKajianKes = group.assignments?.jenis_tugasan === 'KAJIAN_KES';
 
                     return (
                       <tr key={group.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '16px', color: '#64748b', fontWeight: 600 }}>{index + 1}.</td>
                         <td style={{ padding: '16px', fontWeight: 700, color: '#0f172a', fontSize: '1rem' }}>{group.group_name}</td>
+                        <td style={{ padding: '16px' }}>
+                          <span style={{ background: isKajianKes ? '#f3e8ff' : '#e0f2fe', color: isKajianKes ? '#7e22ce' : '#0369a1', padding: '4px 10px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 700 }}>
+                            {isKajianKes ? '🔍 KAJIAN KES' : '📑 KERTAS KERJA'}
+                          </span>
+                        </td>
                         <td style={{ padding: '16px' }}>
                           <span style={{ background: '#f1f5f9', padding: '4px 10px', borderRadius: '12px', fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>
                             👥 {group.group_members?.length || 0} orang
@@ -410,38 +496,105 @@ export default function PortalPenilaianPage() {
             </table>
           </div>
         </div>
-
       </div>
 
-      {/* BAHAGIAN KHAS CETAKAN PDF */}
-      <div className="print-only" style={{ display: 'none', padding: '20px', fontFamily: 'system-ui, sans-serif' }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{ fontSize: '1.6rem', color: '#0f172a', marginBottom: '8px' }}>Laporan Markah Penilaian Pelajar</h1>
-          <p style={{ margin: 0, fontSize: '1.1rem', color: '#475569' }}>
-            Kursus: <strong>{selectedCourse || 'Semua Kursus'}</strong> | Kelas: <strong>{selectedGroupClass || 'Semua Kelas'}</strong>
-          </p>
+      {/* POP-UP (MODAL) TETAPAN LAPORAN */}
+      {showReportModal && (
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(15,23,42,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ background: '#fff', borderRadius: '16px', padding: '30px', maxWidth: '550px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+            <h2 style={{ margin: '0 0 16px 0', color: '#0f172a', fontSize: '1.4rem' }}>📥 Janaan Laporan Markah Keseluruhan</h2>
+            <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '0.95rem' }}>Sila pastikan kelas yang ingin dijana laporannya adalah tepat:</p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#047857', marginBottom: '6px' }}>1. Fakulti / Program Pengajian</label>
+                <select value={selectedProgram} onChange={(e) => handleProgramChange(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #cbd5e1', outline: 'none', color: '#0f172a' }}>
+                  {programList.map((prog, i) => <option key={i} value={prog}>{prog}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#047857', marginBottom: '6px' }}>2. Kod Kursus (Subjek)</label>
+                <select value={selectedCourse} onChange={(e) => handleCourseChange(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #10b981', background: '#ecfdf5', outline: 'none', color: '#064e3b', fontWeight: 500 }}>
+                  <option value="">Sila Pilih Subjek...</option>
+                  {courseList.map((crs, i) => <option key={i} value={crs}>{crs}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#047857', marginBottom: '6px' }}>3. Kumpulan / Kelas Rasmi</label>
+                <select value={selectedGroupClass} onChange={(e) => handleGroupClassChange(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '10px', border: '1px solid #3b82f6', background: '#eff6ff', outline: 'none', color: '#1e40af', fontWeight: 500 }}>
+                  <option value="">Sila Pilih Kelas...</option>
+                  {groupClassList.map((grp, i) => <option key={i} value={grp}>{grp}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ background: '#fef3c7', color: '#b45309', padding: '14px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '24px', lineHeight: 1.5 }}>
+              <strong>Nota:</strong> Laporan ini akan menyenaraikan semua individu pelajar di dalam kelas ini dan menggabungkan markah mereka (Kertas Kerja, Kajian Kes & Pembentangan).
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowReportModal(null)} style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}>Batal</button>
+              {showReportModal === 'excel' ? (
+                <button disabled={!isReadyToExport} onClick={() => { exportToExcel(); setShowReportModal(null); }} style={{ flex: 2, padding: '12px', background: isReadyToExport ? '#16a34a' : '#94a3b8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: isReadyToExport ? 'pointer' : 'not-allowed' }}>
+                  {isReadyToExport ? '📊 Muat Turun Excel' : 'Pilih Kelas Dahulu'}
+                </button>
+              ) : (
+                <button disabled={!isReadyToExport} onClick={() => { window.print(); setShowReportModal(null); }} style={{ flex: 2, padding: '12px', background: isReadyToExport ? '#0f172a' : '#94a3b8', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 600, cursor: isReadyToExport ? 'pointer' : 'not-allowed' }}>
+                  {isReadyToExport ? '🖨️ Cetak PDF' : 'Pilih Kelas Dahulu'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BAHAGIAN KHAS CETAKAN PDF (CONSOLIDATED REPORT) */}
+      <div className="print-only" style={{ display: 'none', padding: '10px' }}>
+        <div style={{ marginBottom: '20px' }}>
+          <h2 style={{ textTransform: 'uppercase', marginBottom: '15px' }}>MARKAH KESELURUHAN PENILAIAN BERTERUSAN</h2>
+          <table style={{ fontWeight: 600, fontSize: '11pt', color: '#0f172a', border: 'none', width: 'auto', marginTop: 0 }}>
+             <tbody>
+                <tr><td style={{ padding: '0 20px 6px 0', border: 'none', whiteSpace: 'nowrap' }}>KOD KURSUS</td><td style={{ padding: '0 0 6px 0', border: 'none' }}>: {selectedCourse}</td></tr>
+                <tr><td style={{ padding: '0 20px 6px 0', border: 'none', whiteSpace: 'nowrap' }}>NAMA KURSUS</td><td style={{ padding: '0 0 6px 0', border: 'none' }}>: {getCourseName()}</td></tr>
+                <tr><td style={{ padding: '0 20px 0 0', border: 'none', whiteSpace: 'nowrap' }}>KUMPULAN</td><td style={{ padding: '0', border: 'none' }}>: {selectedGroupClass}</td></tr>
+             </tbody>
+          </table>
         </div>
         
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', color: '#0f172a' }}>
+        <table className="print-data-table">
           <thead>
-            <tr style={{ background: '#f1f5f9' }}>
-              <th style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'center', width: '5%' }}>Bil</th>
-              <th style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'left', width: '15%' }}>No. Matrik</th>
-              <th style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'left', width: '30%' }}>Nama Pelajar</th>
-              <th style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'left', width: '15%' }}>Kumpulan</th>
-              <th style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'center', width: '10%' }}>Kertas Kerja (30M)</th>
-              <th style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'center', width: '10%' }}>Pembentangan (30M)</th>
-              <th style={{ padding: '10px', border: '1px solid #cbd5e1', textAlign: 'center', width: '15%', background: '#e2e8f0' }}>Total (60M)</th>
+            <tr>
+              <th style={{ width: '4%' }}>BIL</th>
+              <th style={{ width: '12%' }}>NO. MATRIK</th>
+              <th style={{ width: '30%', textAlign: 'left' }}>NAMA PELAJAR</th>
+              <th style={{ width: '12%' }}>KERTAS KERJA</th>
+              <th style={{ width: '14%' }}>PEMBENTANGAN (KK)</th>
+              <th style={{ width: '14%' }}>KAJIAN KES/REVIEW</th>
+              <th style={{ width: '14%' }}>PEMBENTANGAN (KR)</th>
+              <th style={{ width: '10%' }}>TOTAL MARKAH</th>
             </tr>
           </thead>
           <tbody>
-            {renderPrintableTable()}
+            {consolidatedDataPrint.map((student: any, index: number) => {
+              const total = student.kk_paper + student.kk_pres + student.kr_paper + student.kr_pres;
+              return (
+                <tr key={index}>
+                  <td style={{ textAlign: 'center' }}>{index + 1}</td>
+                  <td style={{ textAlign: 'center' }}>{student.matrix_no}</td>
+                  <td style={{ textAlign: 'left' }}>{student.student_name}</td>
+                  <td style={{ textAlign: 'center' }}>{student.kk_paper}</td>
+                  <td style={{ textAlign: 'center' }}>{student.kk_pres}</td>
+                  <td style={{ textAlign: 'center' }}>{student.kr_paper}</td>
+                  <td style={{ textAlign: 'center' }}>{student.kr_pres}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{total}</td>
+                </tr>
+              );
+            })}
+            {consolidatedDataPrint.length === 0 && (
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '20px' }}>Tiada data untuk kelas ini.</td></tr>
+            )}
           </tbody>
         </table>
-
-        <div style={{ marginTop: '40px', fontSize: '0.85rem', color: '#64748b', textAlign: 'right' }}>
-          Janaan Automatik Sistem Penilaian AI - {new Date().toLocaleDateString('ms-MY')}
-        </div>
       </div>
 
     </div>

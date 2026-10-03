@@ -34,7 +34,8 @@ export default function PelajarDashboard() {
               title, 
               kod_kursus, 
               nama_pensyarah,
-              tarikh_akhir
+              tarikh_akhir,
+              jenis_tugasan
             ),
             paper_submissions (id)
           )
@@ -56,6 +57,7 @@ export default function PelajarDashboard() {
             kodKursus: group.assignments.kod_kursus,
             namaPensyarah: group.assignments.nama_pensyarah,
             tarikhAkhir: group.assignments.tarikh_akhir, // Tarikh akhir dari pensyarah
+            jenisTugasan: group.assignments.jenis_tugasan || 'KERTAS_KERJA', // Fallback jika undefined
             hasSubmitted: group.paper_submissions && group.paper_submissions.length > 0 // Semak jika ada submission
           };
         }) || [];
@@ -157,13 +159,33 @@ export default function PelajarDashboard() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {assignments.map((item, idx) => {
                   const isExpired = checkIsExpired(item.tarikhAkhir);
+                  const isKajianKes = item.jenisTugasan === 'KAJIAN_KES';
 
                   return (
                   <div key={idx} style={{ background: '#fff', borderRadius: '20px', border: '1px solid #cbd5e1', overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.03)' }}>
                     <div style={{ background: '#059669', height: '4px', width: '100%' }}></div>
                     <div style={{ padding: '24px' }}>
-                      <span style={{ background: '#f1f5f9', color: '#475569', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700 }}>{item.kodKursus}</span>
-                      <h2 style={{ margin: '16px 0 12px 0', fontSize: '1.4rem', color: '#0f172a', fontWeight: 800, lineHeight: 1.4 }}>{item.title}</h2>
+                      
+                      {/* BAHAGIAN TAG */}
+                      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                        <span style={{ background: '#f1f5f9', color: '#475569', padding: '6px 12px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 700 }}>
+                          {item.kodKursus}
+                        </span>
+                        
+                        <span style={{ 
+                          background: isKajianKes ? '#f3e8ff' : '#e0f2fe', 
+                          color: isKajianKes ? '#7e22ce' : '#0369a1', 
+                          border: `1px solid ${isKajianKes ? '#d8b4fe' : '#7dd3fc'}`,
+                          padding: '6px 12px', 
+                          borderRadius: '8px', 
+                          fontSize: '0.85rem', 
+                          fontWeight: 700 
+                        }}>
+                          {isKajianKes ? '[KAJIAN KES / REVIEW]' : '[KERTAS KERJA]'}
+                        </span>
+                      </div>
+
+                      <h2 style={{ margin: '0 0 12px 0', fontSize: '1.4rem', color: '#0f172a', fontWeight: 800, lineHeight: 1.4 }}>{item.title}</h2>
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', color: '#475569', fontSize: '0.95rem', flexWrap: 'wrap' }}>
                         <div>👥 Kumpulan: <strong style={{ color: '#0f172a' }}>{item.groupName}</strong></div>

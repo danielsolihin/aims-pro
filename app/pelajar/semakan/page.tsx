@@ -44,8 +44,13 @@ export default function SemakanPelajarPage() {
         
         // TARIK MARKAH MAKSIMUM DINAMIK
         const paperMax = Number(assignment?.markah_kertas_kerja || 30);
-        const presMax = Number(assignment?.markah_pembentangan || 30);
-        const totalMax = paperMax + presMax;
+        const presMax = Number(assignment?.markah_pembentangan ?? assignment?.presentation_weight ?? 30);
+        
+        // Semak Jenis Tugasan dan Kewujudan Video
+        const jenisTugasan = assignment?.jenis_tugasan || 'KERTAS_KERJA';
+        const hasVideo = presMax > 0;
+
+        const totalMax = hasVideo ? paperMax + presMax : paperMax;
 
         const gradingData = latestSub?.ai_analysis?.grading_data || {};
         
@@ -65,9 +70,12 @@ export default function SemakanPelajarPage() {
           assignmentTitle: assignment?.title || 'Tugasan',
           groupName: group.group_name,
           lecturerName: assignment?.lecturer_name || 'Pensyarah',
+          jenisTugasan,
+          hasVideo,
           paperMark, paperMax, paperComment,
           presMark, presMax, presComment,
-          totalMark: paperMark + presMark, totalMax,
+          totalMark: hasVideo ? paperMark + presMark : paperMark, 
+          totalMax,
           isEvaluated
         };
       }).filter(Boolean);
@@ -138,7 +146,9 @@ export default function SemakanPelajarPage() {
                   
                   <div style={{ flex: 1, minWidth: '280px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '16px', padding: '20px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#064e3b', fontWeight: 700 }}>📄 Kertas Kerja</h4>
+                      <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#064e3b', fontWeight: 700 }}>
+                        📄 {res.jenisTugasan === 'KAJIAN_KES' ? 'Kajian Kes' : 'Kertas Kerja'}
+                      </h4>
                       <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#047857' }}>{res.isEvaluated ? res.paperMark : '0'} <span style={{ fontSize: '0.9rem', color: '#10b981' }}>/ {res.paperMax}</span></div>
                     </div>
                     <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #a7f3d0' }}>
@@ -147,16 +157,18 @@ export default function SemakanPelajarPage() {
                     </div>
                   </div>
 
-                  <div style={{ flex: 1, minWidth: '280px', background: '#fffbeb', border: '1px solid #fde047', borderRadius: '16px', padding: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                      <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#854d0e', fontWeight: 700 }}>🗣️ Pembentangan</h4>
-                      <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#b45309' }}>{res.isEvaluated ? res.presMark : '0'} <span style={{ fontSize: '0.9rem', color: '#ca8a04' }}>/ {res.presMax}</span></div>
+                  {res.hasVideo && (
+                    <div style={{ flex: 1, minWidth: '280px', background: '#fffbeb', border: '1px solid #fde047', borderRadius: '16px', padding: '20px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                        <h4 style={{ margin: 0, fontSize: '1.05rem', color: '#854d0e', fontWeight: 700 }}>🗣️ Pembentangan</h4>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#b45309' }}>{res.isEvaluated ? res.presMark : '0'} <span style={{ fontSize: '0.9rem', color: '#ca8a04' }}>/ {res.presMax}</span></div>
+                      </div>
+                      <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #fde047' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#d97706', marginBottom: '8px' }}>KOMEN PRESTASI:</div>
+                        <p style={{ margin: 0, fontSize: '0.95rem', color: '#334155', fontStyle: res.presComment ? 'normal' : 'italic' }}>{res.isEvaluated ? (res.presComment || 'Tiada komen ditinggalkan.') : 'Pensyarah belum meninggalkan ulasan.'}</p>
+                      </div>
                     </div>
-                    <div style={{ background: '#fff', padding: '16px', borderRadius: '12px', border: '1px solid #fde047' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#d97706', marginBottom: '8px' }}>KOMEN PRESTASI:</div>
-                      <p style={{ margin: 0, fontSize: '0.95rem', color: '#334155', fontStyle: res.presComment ? 'normal' : 'italic' }}>{res.isEvaluated ? (res.presComment || 'Tiada komen ditinggalkan.') : 'Pensyarah belum meninggalkan ulasan.'}</p>
-                    </div>
-                  </div>
+                  )}
 
                 </div>
               </div>
