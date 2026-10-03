@@ -104,6 +104,18 @@ function MuatNaikContent() {
     fetchGroupAndAssignment();
   }, [groupId]);
 
+  // ✅ ISI TEKS KE DALAM EDITOR SEBAIK SAHAJA PEMUATAN SELESAI & DOM SEDIA
+  useEffect(() => {
+    if (!isLoading) {
+      if (editorRef.current && textContent) {
+        editorRef.current.innerHTML = textContent;
+      }
+      if (refEditorRef.current && textReferences) {
+        refEditorRef.current.innerHTML = textReferences;
+      }
+    }
+  }, [isLoading]);
+
   const fetchGroupAndAssignment = async () => {
     try {
       const { data: groupData, error: groupErr } = await supabase
@@ -126,19 +138,22 @@ function MuatNaikContent() {
         .eq('group_id', groupId)
         .order('id', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (latestSub) {
         setSubmissionId(latestSub.id); 
-        setTextContent(latestSub.text_content || '');
-        setTextReferences(latestSub.text_references || '');
-        setVideoUrl(latestSub.video_link || latestSub.video_url || ''); 
         
-        if (editorRef.current) editorRef.current.innerHTML = latestSub.text_content || '';
-        if (refEditorRef.current) refEditorRef.current.innerHTML = latestSub.text_references || '';
+        // Sokongan fallback jika nama kolum berbeza di Supabase
+        const fetchedContent = latestSub.text_content || latestSub.content || latestSub.paper_text || '';
+        const fetchedRefs = latestSub.text_references || latestSub.references || '';
+        const fetchedVideo = latestSub.video_link || latestSub.video_url || '';
+
+        setTextContent(fetchedContent);
+        setTextReferences(fetchedRefs);
+        setVideoUrl(fetchedVideo); 
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("Ralat muat turun data:", err);
       alert("Gagal menarik data tugasan.");
     } finally {
       setIsLoading(false);
@@ -176,11 +191,9 @@ function MuatNaikContent() {
 
     setIsSavingMembers(true);
     try {
-      // 1. Dapatkan senarai ID ahli yang sedia ada dalam DB
       const { data: dbMembers } = await supabase.from('group_members').select('id').eq('group_id', groupId);
       const dbIds = dbMembers?.map(m => m.id) || [];
       
-      // 2. Cari ID yang telah dipadam oleh pengguna
       const currentIds = members.filter(m => m.id).map(m => m.id);
       const idsToDelete = dbIds.filter(id => !currentIds.includes(id));
 
@@ -188,7 +201,6 @@ function MuatNaikContent() {
         await supabase.from('group_members').delete().in('id', idsToDelete);
       }
 
-      // 3. Kemaskini ahli sedia ada & Masukkan ahli baharu
       for (const m of members) {
         const payload = {
           group_id: groupId,
@@ -205,7 +217,7 @@ function MuatNaikContent() {
 
       alert("✅ Senarai ahli berjaya dikemaskini!");
       setIsEditingMembers(false);
-      fetchGroupAndAssignment(); // Muat semula senarai ahli dari pangkalan data
+      fetchGroupAndAssignment();
     } catch (err: any) {
       alert("Ralat mengemaskini ahli: " + err.message);
     } finally {
@@ -227,14 +239,13 @@ function MuatNaikContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Halang pengguna submit jika sedang kemaskini ahli (untuk elak ralat data tak simpan)
     if (isEditingMembers) {
       alert("Sila klik 'Simpan Senarai Ahli' atau 'Batal' terlebih dahulu sebelum menghantar tugasan.");
       return;
     }
 
-    const currentContent = editorRef.current?.innerHTML || '';
-    const currentRefs = refEditorRef.current?.innerHTML || '';
+    const currentContent = editorRef.current?.innerHTML || textContent || '';
+    const currentRefs = refEditorRef.current?.innerHTML || textReferences || '';
     
     if (!currentContent.trim() || currentContent === '<br>') {
       alert('Sila isikan kandungan kertas kerja anda sebelum menghantar.');
@@ -250,7 +261,7 @@ function MuatNaikContent() {
         text_title: assignmentInfo?.title || 'Tugasan Tanpa Tajuk',
         text_content: currentContent,
         text_references: currentRefs,
-        pdf_url: '' // WAJIB kekal kosong sebegini untuk atasi "not-null constraint"
+        pdf_url: '' 
       };
 
       const sendDataToDB = async (dataPayload: any) => {
@@ -343,7 +354,7 @@ function MuatNaikContent() {
               <div style={{ fontSize: '1.05rem', color: '#334155', fontWeight: 500, marginTop: '2px' }}>{assignmentInfo?.nama_pensyarah} — {assignmentInfo?.kod_kursus} ({assignmentInfo?.kumpulan_pelajar})</div>
             </div>
 
-            {/* BAHAGIAN PENGURUSAN AHLI YANG BARU */}
+            {/* BAHAGIAN PENGURUSAN AHLI */}
             <div style={{ gridColumn: '1 / -1', borderTop: '1px dashed #a7f3d0', paddingTop: '16px', marginTop: '4px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600, textTransform: 'uppercase' }}>Senarai Ahli & No. Matrik</span>

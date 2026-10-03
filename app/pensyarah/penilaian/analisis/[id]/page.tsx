@@ -101,6 +101,17 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
     if (groupId) fetchPaper();
   }, [groupId]);
 
+  // ✅ ISI TEKS KE DALAM EDITOR SEBAIK SAHAJA PEMUATAN SELESAI & DOM SEDIA
+  useEffect(() => {
+    if (!isLoading && paperRef.current) {
+      if (marks.length > 0) {
+        renderMarkedPaper(cleanHtmlRef.current, marks);
+      } else {
+        paperRef.current.innerHTML = cleanHtmlRef.current;
+      }
+    }
+  }, [isLoading, marks]);
+
   // ==========================================
   // ENJIN RENDER TEKS
   // ==========================================
@@ -164,8 +175,9 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
           maxPaperMark: assignment?.markah_kertas_kerja || 30
         });
 
-        const textContent = validSubmission.text_content || '';
-        const textRef = validSubmission.text_references || '';
+        // Sokongan fallback kepada pelbagai nama kolum
+        const textContent = validSubmission.text_content || validSubmission.content || validSubmission.paper_text || '';
+        const textRef = validSubmission.text_references || validSubmission.references || '';
         
         const isContentArabic = /[\u0600-\u06FF]/.test(textContent);
         const rtlStyle = isContentArabic ? 'direction: rtl; text-align: right;' : 'direction: ltr; text-align: left;';
@@ -173,7 +185,7 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
         const contentHtml = textContent ? `<div id="paper-body" style="${rtlStyle}">${textContent}</div>` : '';
         const refHtml = textRef ? `<div id="paper-ref" style="margin-top: 40px; padding-top: 20px; border-top: 1px dashed #cbd5e1; ${rtlStyle}"><h3 style="font-size: 1.1rem; color: #064e3b; margin-bottom: 12px; font-weight: 700;">📚 Senarai Rujukan:</h3><div style="font-family: inherit; white-space: pre-wrap; font-size: 0.95rem; color: #475569; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; line-height: 1.6;">${textRef}</div></div>` : '';
 
-        const cleanHtml = (contentHtml + refHtml).trim() || '<p style="text-align: center;">Kertas kerja kosong.</p>';
+        const cleanHtml = (contentHtml + refHtml).trim() || '<p style="text-align: center; color: #64748b;">Kertas kerja kosong.</p>';
         cleanHtmlRef.current = cleanHtml;
 
         let savedMarks = [];
@@ -183,9 +195,6 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
 
         if (savedMarks.length > 0) {
           setMarks(savedMarks);
-          setTimeout(() => renderMarkedPaper(cleanHtml, savedMarks), 100);
-        } else {
-          if (paperRef.current) paperRef.current.innerHTML = cleanHtml;
         }
       }
     } catch (e: any) {
@@ -439,7 +448,7 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
             <button onClick={resetMarks} style={{ background: '#fee2e2', color: '#b91c1c', border: '1px solid #fca5a5', padding: '10px 16px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer', transition: 'all 0.2s' }}>🔄 Reset Markah</button>
             <button onClick={saveToDatabase} disabled={isSaving || !hasUnsavedChanges} style={{ background: hasUnsavedChanges ? '#10b981' : '#f1f5f9', color: hasUnsavedChanges ? '#fff' : '#94a3b8', border: hasUnsavedChanges ? 'none' : '1px solid #cbd5e1', padding: '10px 20px', borderRadius: '8px', fontWeight: 700, fontSize: '0.9rem', cursor: hasUnsavedChanges ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', gap: '8px', transition: 'all 0.2s' }}>{isSaving ? '⏳ Menyimpan...' : hasUnsavedChanges ? '💾 Simpan Perubahan' : '✅ Telah Disimpan'}</button>
-            <button onClick={() => window.print()} style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>🖨️ Cetak PDF</button>
+            <button onClick={() => window.print()} style={{ background: '#0f172a', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 600, fontSize: '0.9rem', cursor: 'pointer' }}>🖨️️ Cetak PDF</button>
             <button onClick={runAIAnalysis} disabled={isAIAnalyzing || marks.length > 0} style={{ background: isAIAnalyzing || marks.length > 0 ? '#e2e8f0' : 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', color: isAIAnalyzing || marks.length > 0 ? '#94a3b8' : '#fff', border: 'none', padding: '10px 24px', borderRadius: '8px', fontWeight: 600, cursor: isAIAnalyzing || marks.length > 0 ? 'not-allowed' : 'pointer' }}>{isAIAnalyzing ? '⏳ AI Sedang Menganalisis...' : marks.length > 0 ? '✅ AI Selesai (Sila Reset)' : '✨ Jalankan Analisis AI'}</button>
           </div>
         </div>
@@ -534,7 +543,7 @@ export default function AnalisisTeksManualPage({ params }: { params: Promise<{ i
                       <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#475569' }}>{mark.category}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button type="button" onClick={(e) => openEditModal(mark, e)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '1.1rem', cursor: 'pointer', padding: '2px 4px' }}>✏️</button>
+                      <button type="button" onClick={(e) => openEditModal(mark, e)} style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '1.1rem', cursor: 'pointer', padding: '2px 4px' }}>✏️️</button>
                       <button type="button" onClick={(e) => deleteMark(mark.id, e)} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '1.2rem', cursor: 'pointer', padding: '2px 4px' }}>×</button>
                     </div>
                   </div>
