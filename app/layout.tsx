@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'My Muqaran - Halal Edu App',
-  description: 'Aplikasi Pengajaran & Pembelajaran Fiqh Muqaranah',
+  title: 'AIMS-Pro',
+  description: 'Automated & Intelligent Marking System',
 };
 
 export default function RootLayout({
