@@ -25,10 +25,14 @@ export default function CiptaTugasanPage() {
   const [namaKursus, setNamaKursus] = useState('');
   const [tarikhAkhir, setTarikhAkhir] = useState('');
   
+  // STATE SEJARAH AUTO-CADANGAN
   const [historyFakulti, setHistoryFakulti] = useState<string[]>([]);
   const [historyKumpulan, setHistoryKumpulan] = useState<string[]>([]);
   const [historyKodKursus, setHistoryKodKursus] = useState<string[]>([]);
   const [historyNamaKursus, setHistoryNamaKursus] = useState<string[]>([]);
+
+  // STATE STATUS PADANAN FAKULTI
+  const [fakultiMatchStatus, setFakultiMatchStatus] = useState<'MATCHED' | 'NEW' | null>(null);
 
   // STATE BORANG 2: SKOP TUGASAN
   const [title, setTitle] = useState('');
@@ -60,24 +64,50 @@ export default function CiptaTugasanPage() {
 
   const fetchLecturerHistory = async () => {
     try {
+      // 1. Ambil sejarah Fakulti KESELURUHAN (Global) untuk elak duplikasi
+      const { data: globalData, error: globalErr } = await supabase
+        .from('assignments')
+        .select('program_pengajian');
+        
+      if (globalErr) throw globalErr;
+      
+      const allFakulti = Array.from(new Set((globalData || []).map(d => d.program_pengajian).filter(Boolean)));
+      setHistoryFakulti(allFakulti);
+
+      // 2. Ambil sejarah peribadi pensyarah untuk Kumpulan & Subjek
       const { data: { session } } = await supabase.auth.getSession();
       const secretUserId = session?.user?.id;
       if (!secretUserId) return;
 
-      const { data, error } = await supabase
+      const { data: personalData, error: personalErr } = await supabase
         .from('assignments')
-        .select('program_pengajian, kumpulan_pelajar, kod_kursus, nama_kursus')
+        .select('kumpulan_pelajar, kod_kursus, nama_kursus')
         .eq('lecturer_id', secretUserId);
 
-      if (error) throw error;
-      if (data && data.length > 0) {
-        setHistoryFakulti(Array.from(new Set(data.map(d => d.program_pengajian).filter(Boolean))));
-        setHistoryKumpulan(Array.from(new Set(data.map(d => d.kumpulan_pelajar).filter(Boolean))));
-        setHistoryKodKursus(Array.from(new Set(data.map(d => d.kod_kursus).filter(Boolean))));
-        setHistoryNamaKursus(Array.from(new Set(data.map(d => d.nama_kursus).filter(Boolean))));
+      if (personalErr) throw personalErr;
+      
+      if (personalData && personalData.length > 0) {
+        setHistoryKumpulan(Array.from(new Set(personalData.map(d => d.kumpulan_pelajar).filter(Boolean))));
+        setHistoryKodKursus(Array.from(new Set(personalData.map(d => d.kod_kursus).filter(Boolean))));
+        setHistoryNamaKursus(Array.from(new Set(personalData.map(d => d.nama_kursus).filter(Boolean))));
       }
     } catch (err) {
       console.warn("Ralat menarik sejarah auto-cadangan:", err);
+    }
+  };
+
+  // FUNGSI PEMADAMAN PINTAR FAKULTI (AUTO-MATCH)
+  const handleFakultiChange = (rawInput: string) => {
+    // 1. Bersihkan jarak (spaces) dan tukar huruf besar
+    const cleanInput = rawInput.replace(/\s+/g, ' ').toUpperCase();
+    setProgramPengajian(cleanInput);
+
+    // 2. Semak jika padan dengan senarai induk sedia ada
+    if (cleanInput.trim() === '') {
+       setFakultiMatchStatus(null);
+    } else {
+       const isMatched = historyFakulti.some(fakulti => fakulti.toUpperCase() === cleanInput.trim());
+       setFakultiMatchStatus(isMatched ? 'MATCHED' : 'NEW');
     }
   };
 
@@ -152,13 +182,16 @@ export default function CiptaTugasanPage() {
       const { data: { session } } = await supabase.auth.getSession();
       const lectName = session?.user?.user_metadata?.full_name || 'Pensyarah Kursus';
 
+      // PENTING: Bersihkan data sebelum simpan (Auto-Match Trim)
+      const finalFakulti = programPengajian.trim().replace(/\s+/g, ' ');
+
       // NAMA LAJUR (COLUMN) TELAH DISELARASKAN DENGAN DATABASE
       let payload: any = {
         jenis_tugasan: jenisTugasan,
-        program_pengajian: programPengajian,
-        kumpulan_pelajar: kumpulanPelajar,
-        kod_kursus: kodKursus,
-        nama_kursus: namaKursus,
+        program_pengajian: finalFakulti,
+        kumpulan_pelajar: kumpulanPelajar.trim(),
+        kod_kursus: kodKursus.trim(),
+        nama_kursus: namaKursus.trim(),
         tarikh_akhir: tarikhAkhir || null,
         title: title,
         objektif: skopIsiPerbincangan || sinopsisTajuk || '',
@@ -167,7 +200,7 @@ export default function CiptaTugasanPage() {
         penemuan_cadangan: skopIsiPerbincangan || '',
         nama_pensyarah: lectName,
         markah_kertas_kerja: paperWeight,
-        markah_pembentangan: adaPembentangan ? presentationWeight : 0, // Simpan terus nilai 0 ke pangkalan data
+        markah_pembentangan: adaPembentangan ? presentationWeight : 0, 
         paper_rubrics: rubrics
       };
 
@@ -194,7 +227,7 @@ export default function CiptaTugasanPage() {
         setSkopIsiPerbincangan('');
         setRubrics(prev => prev.map(r => ({ ...r, keywords: '' })));
         setAiStatusNote(null);
-        fetchLecturerHistory();
+        fetchLecturerHistory(); // Refresh the list
         
         const section2 = document.getElementById('seksyen-skop');
         if (section2) section2.scrollIntoView({ behavior: 'smooth' });
@@ -226,7 +259,7 @@ export default function CiptaTugasanPage() {
         
         {/* BARIS 1: Jenis Tugasan */}
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
-          <div style={{ fontWeight: 700, color: '#334155', minWidth: '220px' }}>1. Jenis Tugasan:</div>
+          <div style={{ fontWeight: 700, color: '#334155', minWidth: '220px' }}>Jenis Tugasan:</div>
           <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: jenisTugasan === 'KERTAS_KERJA' ? 700 : 500, color: jenisTugasan === 'KERTAS_KERJA' ? '#065f46' : '#64748b' }}>
             <input type="radio" value="KERTAS_KERJA" checked={jenisTugasan === 'KERTAS_KERJA'} onChange={() => handleJenisChange('KERTAS_KERJA')} style={{ accentColor: '#065f46', width: '18px', height: '18px' }} />
             Kertas Kerja
@@ -269,14 +302,41 @@ export default function CiptaTugasanPage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
             <div>
               <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', marginBottom: '6px' }}>Fakulti / Program Pengajian</label>
-              <input type="text" list="list-fakulti" placeholder="Contoh: Fakulti Pengajian Kontemporari Islam" value={programPengajian} onChange={(e) => setProgramPengajian(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 'normal' }} />
+              <input 
+                type="text" 
+                list="list-fakulti" 
+                placeholder="Contoh: FAKULTI PENGAJIAN KONTEMPORARI ISLAM" 
+                value={programPengajian} 
+                onChange={(e) => handleFakultiChange(e.target.value)} 
+                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 'bold', color: '#0f172a' }} 
+              />
               <datalist id="list-fakulti">
                 {historyFakulti.map((item, idx) => <option key={idx} value={item} />)}
               </datalist>
+              
+              {/* INDIKATOR PADANAN FAKULTI */}
+              {fakultiMatchStatus === 'MATCHED' && (
+                <div style={{ marginTop: '6px', fontSize: '0.75rem', color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  🟢 Sepadan dengan rekod sedia ada
+                </div>
+              )}
+              {fakultiMatchStatus === 'NEW' && (
+                <div style={{ marginTop: '6px', fontSize: '0.75rem', color: '#2563eb', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  🔵 Fakulti / Program baharu
+                </div>
+              )}
             </div>
+            
             <div>
               <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', marginBottom: '6px' }}>Kumpulan / Kumpulan Pelajar</label>
-              <input type="text" list="list-kumpulan" placeholder="Contoh: IC123" value={kumpulanPelajar} onChange={(e) => setKumpulanPelajar(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 'normal' }} />
+              <input 
+                type="text" 
+                list="list-kumpulan" 
+                placeholder="Contoh: IC123" 
+                value={kumpulanPelajar} 
+                onChange={(e) => setKumpulanPelajar(e.target.value.replace(/\s+/g, ' ').toUpperCase())} 
+                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 'bold', color: '#0f172a' }} 
+              />
               <datalist id="list-kumpulan">
                 {historyKumpulan.map((item, idx) => <option key={idx} value={item} />)}
               </datalist>
@@ -286,7 +346,14 @@ export default function CiptaTugasanPage() {
           <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div style={{ width: '180px' }}>
               <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', marginBottom: '6px' }}>Kod Kursus</label>
-              <input type="text" list="list-kod" placeholder="Contoh: CTU552" value={kodKursus} onChange={(e) => setKodKursus(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 'normal' }} />
+              <input 
+                type="text" 
+                list="list-kod" 
+                placeholder="Contoh: CTU552" 
+                value={kodKursus} 
+                onChange={(e) => setKodKursus(e.target.value.replace(/\s+/g, ' ').toUpperCase())} 
+                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 'bold', color: '#0f172a' }} 
+              />
               <datalist id="list-kod">
                 {historyKodKursus.map((item, idx) => <option key={idx} value={item} />)}
               </datalist>
@@ -294,7 +361,14 @@ export default function CiptaTugasanPage() {
             
             <div style={{ flex: 1, minWidth: '220px' }}>
               <label style={{ display: 'block', fontWeight: 600, fontSize: '0.9rem', marginBottom: '6px' }}>Nama Kursus</label>
-              <input type="text" list="list-nama" placeholder="Contoh: Muqaranah Fiqh" value={namaKursus} onChange={(e) => setNamaKursus(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 'normal' }} />
+              <input 
+                type="text" 
+                list="list-nama" 
+                placeholder="Contoh: MUQARANAH FIQH" 
+                value={namaKursus} 
+                onChange={(e) => setNamaKursus(e.target.value.replace(/\s+/g, ' ').toUpperCase())} 
+                style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1', fontWeight: 'bold', color: '#0f172a' }} 
+              />
               <datalist id="list-nama">
                 {historyNamaKursus.map((item, idx) => <option key={idx} value={item} />)}
               </datalist>
