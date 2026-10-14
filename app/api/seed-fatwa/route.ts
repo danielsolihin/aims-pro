@@ -5,10 +5,6 @@ import OpenAI from 'openai';
 // Beritahu Next.js supaya tidak menyimpan cache untuk fungsi ini
 export const dynamic = 'force-dynamic';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 const mockFatwas = [
   {
     title: 'Hukum Permainan Kutu (Kumpulan Wang)',
@@ -32,6 +28,15 @@ const mockFatwas = [
 
 export async function GET() {
   try {
+    // PEMBAIKAN: Alihkan inisialisasi OpenAI ke dalam fungsi GET (Lazy Loading)
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.warn("⚠️ Amaran: OPENAI_API_KEY tidak ditemui dalam Environment Variables.");
+    }
+    const openai = new OpenAI({ 
+      apiKey: apiKey || '' 
+    });
+
     const results = [];
 
     for (const fatwa of mockFatwas) {
