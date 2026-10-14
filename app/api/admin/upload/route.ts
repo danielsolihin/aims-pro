@@ -5,11 +5,6 @@ import OpenAI from 'openai';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-// KODE BARU (Tambahkan nilai cadangan/fallback string kosong):
-const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || '' 
-});
-
 // Nyahkod teks PDF dengan selamat
 function safeDecodePdfText(encodedStr: string): string {
   try { 
@@ -82,6 +77,13 @@ function chunkPages(pages: PageData[], chunkSize = 1000, overlap = 200) {
 
 export async function POST(req: NextRequest) {
   try {
+    // PEMBAIKAN: Alihkan inisialisasi OpenAI ke dalam fungsi POST (Lazy Loading)
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.warn("⚠️ Amaran: OPENAI_API_KEY tidak ditemui dalam Environment Variables.");
+    }
+    const openai = new OpenAI({ apiKey: apiKey || '' });
+
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const tahunStr = formData.get('tahun') as string;
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
 
     for (let i = 0; i < chunks.length; i++) {
       const { text, mukasurat } = chunks[i];
-      const title = `${fileName.replace('.pdf', '')} - MS ${mukasurat} (Bhgn ${i + 1})`;
+      const title = `${fileName.replace('.pdf', '')} MS ${mukasurat} (Bhgn ${i + 1})`;
 
       // 1. Jana embedding OpenAI
       const embeddingResponse = await openai.embeddings.create({
